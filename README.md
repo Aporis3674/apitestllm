@@ -1,15 +1,12 @@
 # ⚡ API TEST CLI
 
-> **High-Performance AI Endpoint Benchmark, TTFT Telemetry & Health Diagnostic TUI**
+<p align="center">
+  <img src="docs/screenshot.png" alt="API TEST CLI Screenshot" width="850"/>
+</p>
 
-```
- █████╗ ██████╗ ██╗    ████████╗███████╗███████╗████████╗
-██╔══██╗██╔══██╗██║    ╚══██╔══╝██╔════╝██╔════╝╚══██╔══╝
-███████║██████╔╝██║       ██║   █████╗  ███████╗   ██║   
-██╔══██║██╔═══╝ ██║       ██║   ██╔══╝  ╚════██║   ██║   
-██║  ██║██║     ██║       ██║   ███████╗███████║   ██║   
-╚═╝  ╚═╝╚═╝     ╚═╝       ╚═╝   ╚══════╝╚══════╝   ╚═╝   
-```
+<p align="center">
+  <strong>Next-Gen AI API Endpoint Benchmark, TTFT Telemetry & Health Diagnostic TUI</strong>
+</p>
 
 <p align="center">
   <a href="#-key-features">Features</a> •
