@@ -70,14 +70,14 @@ class APITestApp:
             self.run_quick_benchmark()
             return "handled"
 
-        if cmd_clean in ["/exit", "/quit", "q", "exit", "quit", "2"]:
+        if cmd_clean in ["/exit", "/quit", "/q"]:
             self.exit_app()
 
-        if cmd_clean in ["/clear", "/cls", "cls", "clear"]:
+        if cmd_clean in ["/clear", "/cls"]:
             clear_screen()
             return "handled"
 
-        if cmd_clean in ["/back", "/0", ".."]:
+        if cmd_clean in ["/back"]:
             return "back"
 
         if cmd_clean in ["/config", "/c"]:
@@ -101,7 +101,13 @@ class APITestApp:
             return "handled"
 
         if cmd_clean in ["/start"]:
-            return "start"
+            self.run_suite_menu()
+            return "handled"
+
+        if cmd_clean in ["/", "/help", "/?"]:
+            from palette import print_inline_slash_preview
+            print_inline_slash_preview()
+            return "handled"
 
         return None
 
