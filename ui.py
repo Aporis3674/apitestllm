@@ -5,6 +5,19 @@ API TEST CLI - Rich TUI Components, RGB ASCII Banner & Visual Engine
 import os
 import sys
 import colorsys
+
+# Reconfigure stdout/stderr to UTF-8 on Windows to guarantee clean Unicode ASCII rendering
+if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if sys.stderr and hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 from typing import Dict, Any, List, Optional
 from rich.console import Console
 from rich.panel import Panel
@@ -155,8 +168,15 @@ def render_slash_commands():
     table.add_column("Description", style="white")
 
     table.add_row("/start", "1", "Start testing suite with current or new profile")
+    table.add_row("/quick", "scan", "Instantly fetch and inspect model health with quick endpoint entry")
+    table.add_row("/test", "eval", "Quick benchmark: pick a model and run speed telemetry")
+    table.add_row("/compare", "cmp", "Head-to-head multi-model performance arena & leaderboard")
+    table.add_row("/stress", "load", "Concurrency & rate-limit load test with aggregate throughput")
+    table.add_row("/export", "exp", "Export benchmark results to JSON, CSV, Markdown, or HTML")
+    table.add_row("/history", "h", "Browse and inspect past benchmark telemetry history")
+    table.add_row("/presets", "pre", "Apply popular cloud (Groq, Cerebras, OpenRouter) or local presets")
     table.add_row("/models", "m", "Fetch all models and check real-time status (OK / Failed)")
-    table.add_row("/bench", "b", "Run benchmark for TTFT, latency, and tokens/sec")
+    table.add_row("/bench", "b", "Run multi-run statistical benchmark (TTFT, TPS, P95)")
     table.add_row("/stream", "s", "Interactive live streaming test with real-time token metrics")
     table.add_row("/config", "c", "Reconfigure Base URL, API Key, and profile settings")
     table.add_row("/profiles", "p", "Switch, view, or manage saved API profiles")
@@ -330,6 +350,15 @@ def render_benchmark_report(result: Dict[str, Any]):
     metrics_table.add_row("Token Generation Speed", f"[bold bright_white]{tps:.1f} tokens/sec[/bold bright_white]", tps_rating)
     metrics_table.add_row("Generated Tokens Count", f"[bold bright_white]{tokens} tokens[/bold bright_white]", f"~{len(text_content)} characters")
 
+    # If statistical multi-run data is available
+    if "stats" in result and isinstance(result["stats"], dict):
+        st = result["stats"]
+        stability = st.get("stability_score", 100.0)
+        stab_style = "bold green" if stability >= 90 else "yellow" if stability >= 70 else "red"
+        metrics_table.add_row("Stability Score", f"[{stab_style}]{stability:.1f}%[/{stab_style}]", "Based on throughput variance")
+        metrics_table.add_row("Cold Start TTFT", f"[bold bright_white]{st.get('cold_start_ttft_ms', 0):.1f} ms[/bold bright_white]", "Initial request latency")
+        metrics_table.add_row("Warm Avg TTFT", f"[bold bright_white]{st.get('warm_ttft_ms', 0):.1f} ms[/bold bright_white]", "Warmed connection latency")
+
     perf_panel = Panel(
         metrics_table,
         title=f"[bold green]⚡ Benchmark Telemetry: {model} ⚡[/bold green]",
@@ -339,6 +368,20 @@ def render_benchmark_report(result: Dict[str, Any]):
     )
     console.print(perf_panel)
     console.print()
+
+    # Reasoning / Thinking Tokens Panel (DeepSeek R1 / OpenAI o1 / etc.)
+    reasoning_text = result.get("reasoning_text", "").strip()
+    if reasoning_text:
+        reasoning_panel = Panel(
+            reasoning_text,
+            title=f"[bold cyan]🧠 Model Thought / Reasoning Process ({result.get('reasoning_tokens', 0)} tokens)[/bold cyan]",
+            title_align="left",
+            border_style="cyan",
+            box=ROUNDED,
+            padding=(1, 2)
+        )
+        console.print(reasoning_panel)
+        console.print()
 
     response_panel = Panel(
         text_content if text_content else "[dim]No text content returned.[/dim]",
@@ -350,3 +393,206 @@ def render_benchmark_report(result: Dict[str, Any]):
     )
     console.print(response_panel)
     console.print()
+
+
+def render_multi_run_benchmark_report(result: Dict[str, Any]):
+    """Renders comprehensive multi-run statistics with percentiles and individual run breakdown."""
+    render_benchmark_report(result)
+
+    runs = result.get("runs", [])
+    if len(runs) > 1:
+        table = Table(title="Iteration Breakdown & Consistency", title_style="bold grey85", box=ROUNDED, border_style="grey50", expand=True)
+        table.add_column("Run #", justify="center", width=8, style="dim grey70")
+        table.add_column("Status", justify="center", width=12)
+        table.add_column("TTFT (ms)", justify="right", style="bold bright_white")
+        table.add_column("Total Latency (ms)", justify="right")
+        table.add_column("Throughput", justify="right", style="bold cyan")
+        table.add_column("Tokens", justify="right")
+
+        for r in runs:
+            st_badge = "[bold green]● OK[/bold green]" if r.get("success") else "[bold red]✖ FAIL[/bold red]"
+            table.add_row(
+                f"#{r.get('run_number', 1)}",
+                st_badge,
+                f"{r.get('ttft_ms', 0.0):.1f} ms",
+                f"{r.get('total_latency_ms', 0.0):.1f} ms",
+                f"{r.get('tps', 0.0):.1f} T/s",
+                str(r.get("tokens", 0)),
+            )
+
+        console.print(table)
+        console.print()
+
+
+def render_model_comparison_matrix(data: Dict[str, Any]):
+    """Renders head-to-head multi-model comparison matrix with winner badges."""
+    clear_screen()
+    print_banner(show_subtitle=False)
+
+    models_data = data.get("models", [])
+    prompt = data.get("prompt", "")
+    winners = data.get("winners", {})
+
+    console.print(Panel(
+        f"[bold bright_white]🥊 Model Arena Performance Matrix[/bold bright_white]\n"
+        f"[dim grey70]Prompt: '{prompt}'[/dim grey70]",
+        border_style="cyan",
+        box=ROUNDED,
+        padding=(0, 2)
+    ))
+    console.print()
+
+    # Winners Leaderboard
+    if winners:
+        w_table = Table(show_header=False, box=ROUNDED, border_style="gold1", expand=True)
+        w_table.add_column("Category", style="bold yellow", width=24)
+        w_table.add_column("Winner Model", style="bold bright_white")
+        w_table.add_column("Score / Metric", style="bold green", justify="right")
+
+        if "fastest_ttft" in winners:
+            w = winners["fastest_ttft"]
+            w_table.add_row("🏆 Fastest TTFT (First Token)", f"[bold cyan]{w['model']}[/bold cyan]", f"{w['value']:.1f} ms")
+
+        if "highest_tps" in winners:
+            w = winners["highest_tps"]
+            w_table.add_row("🚀 Highest Throughput (Speed)", f"[bold cyan]{w['model']}[/bold cyan]", f"{w['value']:.1f} tokens/sec")
+
+        if "lowest_latency" in winners:
+            w = winners["lowest_latency"]
+            w_table.add_row("⏱ Fastest Overall Response", f"[bold cyan]{w['model']}[/bold cyan]", f"{w['value']:.1f} ms")
+
+        console.print(Panel(w_table, title="[bold gold1]★ Leaderboard Winners ★[/bold gold1]", border_style="gold1", box=ROUNDED, padding=(0, 1)))
+        console.print()
+
+    # Full Comparison Table
+    table = Table(title="All Models Comparison", title_style="bold grey85", box=ROUNDED, border_style="grey50", expand=True)
+    table.add_column("#", width=4, justify="right", style="dim grey70")
+    table.add_column("Model ID", style="bold bright_white", min_width=24)
+    table.add_column("Status", justify="center", width=10)
+    table.add_column("TTFT (ms)", justify="right", width=14)
+    table.add_column("Throughput", justify="right", width=18)
+    table.add_column("Total Latency", justify="right", width=16)
+    table.add_column("Tokens", justify="right", width=10)
+
+    for idx, m in enumerate(models_data, 1):
+        is_ok = m.get("success", False)
+        status_str = "[bold green]● OK[/bold green]" if is_ok else "[bold red]✖ FAILED[/bold red]"
+
+        ttft_str = f"{m.get('ttft_ms', 0):.1f} ms" if is_ok else "—"
+        tps_str = f"{m.get('tps', 0):.1f} T/s" if is_ok else "—"
+        tot_str = f"{m.get('total_latency_ms', 0):.1f} ms" if is_ok else "—"
+        tok_str = str(m.get("tokens", 0)) if is_ok else "—"
+
+        # Highlight winners
+        is_fastest_ttft = winners.get("fastest_ttft", {}).get("model") == m.get("model")
+        is_highest_tps = winners.get("highest_tps", {}).get("model") == m.get("model")
+
+        m_display = m.get("model", "unknown")
+        if is_fastest_ttft:
+            ttft_str = f"[bold green]⚡ {ttft_str}[/bold green]"
+        if is_highest_tps:
+            tps_str = f"[bold green]🚀 {tps_str}[/bold green]"
+
+        table.add_row(str(idx), m_display, status_str, ttft_str, tps_str, tot_str, tok_str)
+
+    console.print(table)
+    console.print()
+
+
+def render_stress_test_report(data: Dict[str, Any]):
+    """Renders concurrent load and rate-limit stress test report."""
+    clear_screen()
+    print_banner(show_subtitle=False)
+
+    model = data.get("model", "unknown")
+    concurrency = data.get("concurrency", 0)
+    total_req = data.get("total_requests", 0)
+    success_req = data.get("successful_requests", 0)
+    failed_req = data.get("failed_requests", 0)
+    success_rate = data.get("success_rate_pct", 0.0)
+    duration_s = data.get("duration_sec", 0.0)
+    agg_tps = data.get("aggregate_tps", 0.0)
+    total_tok = data.get("total_tokens", 0)
+    stats_lat = data.get("latency_stats", {})
+
+    rate_color = "bold green" if success_rate >= 99 else "bold yellow" if success_rate >= 80 else "bold red"
+
+    table = Table(box=ROUNDED, border_style="grey50", expand=True)
+    table.add_column("Load Test Parameter / Metric", style="bold grey70")
+    table.add_column("Measurement", style="bold white")
+    table.add_column("Evaluation", style="bold cyan")
+
+    table.add_row("Target Model", f"[bold cyan]{model}[/bold cyan]", f"Tested across {concurrency} parallel streams")
+    table.add_row("Success Rate", f"[{rate_color}]{success_rate:.1f}%[/{rate_color}]", f"{success_req} succeeded / {failed_req} failed")
+    table.add_row("Aggregate Throughput", f"[bold green]{agg_tps:.1f} tokens/sec[/bold green]", f"{total_tok} total tokens in {duration_s:.2f}s")
+    table.add_row("P95 Latency", f"[bold bright_white]{stats_lat.get('p95', 0):.1f} ms[/bold bright_white]", "95% of requests completed under this")
+    table.add_row("Mean Latency", f"[bold bright_white]{stats_lat.get('mean', 0):.1f} ms[/bold bright_white]", f"Min: {stats_lat.get('min', 0):.1f} ms | Max: {stats_lat.get('max', 0):.1f} ms")
+
+    panel = Panel(
+        table,
+        title=f"[bold cyan]🌪 Concurrency & Load Stress Test: {model} 🌪[/bold cyan]",
+        border_style="cyan",
+        box=ROUNDED,
+        padding=(1, 2)
+    )
+    console.print(panel)
+    console.print()
+
+    err_breakdown = data.get("error_breakdown", {})
+    if err_breakdown:
+        err_table = Table(title="Observed Errors & Throttling", title_style="bold red", box=ROUNDED, border_style="red", expand=True)
+        err_table.add_column("Failure Cause / HTTP Code", style="bold bright_red")
+        err_table.add_column("Count", justify="right", style="bold white", width=10)
+        for err, count in err_breakdown.items():
+            err_table.add_row(err, str(count))
+        console.print(err_table)
+        console.print()
+
+
+def render_history_table(history: List[Dict[str, Any]]):
+    """Renders recent benchmark history table."""
+    clear_screen()
+    print_banner(show_subtitle=False)
+
+    if not history:
+        console.print(Panel("[dim]No benchmark history recorded yet. Run /bench or /test to save telemetry.[/dim]", title="History", border_style="grey50"))
+        console.print()
+        return
+
+    table = Table(title="Recent Benchmark History", title_style="bold cyan", box=ROUNDED, border_style="grey50", expand=True)
+    table.add_column("#", width=4, justify="right", style="dim grey70")
+    table.add_column("Timestamp", width=18, style="dim grey70")
+    table.add_column("Model", style="bold bright_white", min_width=20)
+    table.add_column("TTFT", justify="right", width=12)
+    table.add_column("Throughput", justify="right", width=14, style="bold cyan")
+    table.add_column("Latency", justify="right", width=12)
+    table.add_column("Status", justify="center", width=10)
+
+    for idx, item in enumerate(history, 1):
+        ts = item.get("timestamp", "—")
+        m = item.get("model", "unknown")
+        ttft = f"{item.get('ttft_ms', 0):.1f} ms"
+        tps = f"{item.get('tps', 0):.1f} T/s"
+        lat = f"{item.get('total_latency_ms', 0):.1f} ms"
+        ok = item.get("success", False)
+        st = "[green]● OK[/green]" if ok else "[red]✖ FAIL[/red]"
+        table.add_row(str(idx), ts, m, ttft, tps, lat, st)
+
+    console.print(table)
+    console.print()
+
+
+def render_presets_table(presets: List[Dict[str, Any]]):
+    """Renders table of popular cloud and local presets."""
+    table = Table(title="Available Provider Presets", title_style="bold cyan", box=ROUNDED, border_style="grey50", expand=True)
+    table.add_column("#", width=4, justify="right", style="dim grey70")
+    table.add_column("Provider Name", style="bold bright_white", width=25)
+    table.add_column("Endpoint URL", style="bright_white")
+    table.add_column("Default Model", style="magenta", width=28)
+
+    for idx, p in enumerate(presets, 1):
+        table.add_row(str(idx), p.get("name", ""), p.get("base_url", ""), p.get("default_model", ""))
+
+    console.print(table)
+    console.print()
+

@@ -5,6 +5,18 @@ API TEST CLI - Interactive Arrow-Key Model Picker & Discovery Selector
 import os
 import sys
 import time
+
+if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if sys.stderr and hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 from typing import List, Dict, Any, Optional, Tuple
 from rich.console import Console
 from rich.panel import Panel
