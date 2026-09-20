@@ -52,6 +52,30 @@ DEFAULT_PRESETS = [
         "base_url": "https://api.deepseek.com/v1",
         "api_key": "",
         "default_model": "deepseek-chat",
+    },
+    {
+        "name": "Cerebras Cloud (Ultra-Fast)",
+        "base_url": "https://api.cerebras.ai/v1",
+        "api_key": "",
+        "default_model": "llama3.1-70b",
+    },
+    {
+        "name": "Mistral AI",
+        "base_url": "https://api.mistral.ai/v1",
+        "api_key": "",
+        "default_model": "mistral-small-latest",
+    },
+    {
+        "name": "Fireworks AI",
+        "base_url": "https://api.fireworks.ai/inference/v1",
+        "api_key": "",
+        "default_model": "accounts/fireworks/models/llama-v3p1-70b-instruct",
+    },
+    {
+        "name": "xAI (Grok)",
+        "base_url": "https://api.x.ai/v1",
+        "api_key": "",
+        "default_model": "grok-beta",
     }
 ]
 
@@ -85,6 +109,41 @@ def sanitize_base_url(url: str) -> str:
             break
 
     return url.rstrip("/")
+
+
+def detect_provider(url: str) -> str:
+    """
+    Infers the AI cloud or local provider brand from the endpoint URL.
+    Useful for telemetry, badges, and default optimizations.
+    """
+    u = url.lower()
+    if "api.openai.com" in u:
+        return "OpenAI"
+    if "api.groq.com" in u:
+        return "Groq Cloud"
+    if "openrouter.ai" in u:
+        return "OpenRouter"
+    if "deepseek.com" in u:
+        return "DeepSeek"
+    if "cerebras.ai" in u:
+        return "Cerebras"
+    if "mistral.ai" in u:
+        return "Mistral AI"
+    if "together.xyz" in u or "together.ai" in u:
+        return "Together AI"
+    if "fireworks.ai" in u:
+        return "Fireworks AI"
+    if "api.x.ai" in u:
+        return "xAI (Grok)"
+    if "11434" in u or "ollama" in u:
+        return "Ollama (Local)"
+    if "8000" in u or "vllm" in u:
+        return "vLLM (Local)"
+    if "1234" in u or "lmstudio" in u:
+        return "LM Studio (Local)"
+    if "localhost" in u or "127.0.0.1" in u:
+        return "Local Server"
+    return "Custom / OpenAI-Compatible"
 
 
 class ConfigManager:
@@ -181,3 +240,25 @@ class ConfigManager:
     def has_configured_profile(self) -> bool:
         profile = self.get_active_profile()
         return bool(profile and profile.get("base_url"))
+
+    def add_history(self, record: Dict[str, Any], max_items: int = 50):
+        """Records a benchmark or test run into persistent history."""
+        if "history" not in self.data or not isinstance(self.data["history"], list):
+            self.data["history"] = []
+        # Prepend latest
+        self.data["history"].insert(0, record)
+        if len(self.data["history"]) > max_items:
+            self.data["history"] = self.data["history"][:max_items]
+        self.save()
+
+    def get_history(self, limit: int = 20) -> List[Dict[str, Any]]:
+        """Retrieves recent benchmark telemetry runs."""
+        hist = self.data.get("history", [])
+        if isinstance(hist, list):
+            return hist[:limit]
+        return []
+
+    def clear_history(self):
+        """Clears stored benchmark history."""
+        self.data["history"] = []
+        self.save()
