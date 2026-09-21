@@ -4,28 +4,20 @@ API TEST CLI - Interactive Arrow-Key Model Picker & Discovery Selector
 
 import os
 import sys
-import time
+from typing import Any
 
-if sys.stdout and hasattr(sys.stdout, "reconfigure"):
-    try:
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
-        pass
-if sys.stderr and hasattr(sys.stderr, "reconfigure"):
-    try:
-        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
-        pass
-
-from typing import List, Dict, Any, Optional, Tuple
+from rich.align import Align
+from rich.box import ROUNDED
 from rich.console import Console
 from rich.panel import Panel
-from rich.table import Table
-from rich.text import Text
-from rich.align import Align
-from rich.box import ROUNDED, DOUBLE
 from rich.prompt import Prompt
 from rich.status import Status
+from rich.table import Table
+from rich.text import Text
+
+from ._compat import ensure_utf8_stdio
+
+ensure_utf8_stdio()
 
 console = Console()
 
@@ -35,69 +27,71 @@ def read_key() -> str:
     if not sys.stdin.isatty():
         line = sys.stdin.readline()
         if not line:
-            return 'enter'
+            return "enter"
         return line.strip()
 
-    if os.name == 'nt':
+    if os.name == "nt":
         import msvcrt
+
         ch = msvcrt.getch()
-        if ch in (b'\x00', b'\xe0'):
+        if ch in (b"\x00", b"\xe0"):
             ch2 = msvcrt.getch()
-            if ch2 == b'H':
-                return 'up'
-            elif ch2 == b'P':
-                return 'down'
-            elif ch2 == b'K':
-                return 'left'
-            elif ch2 == b'M':
-                return 'right'
-            elif ch2 == b'G':
-                return 'home'
-            elif ch2 == b'O':
-                return 'end'
-            elif ch2 == b'I':
-                return 'page_up'
-            elif ch2 == b'Q':
-                return 'page_down'
-            return ''
-        elif ch in (b'\r', b'\n'):
-            return 'enter'
-        elif ch == b'\x1b':
-            return 'escape'
-        elif ch in (b'\x08', b'\x7f'):
-            return 'backspace'
+            if ch2 == b"H":
+                return "up"
+            elif ch2 == b"P":
+                return "down"
+            elif ch2 == b"K":
+                return "left"
+            elif ch2 == b"M":
+                return "right"
+            elif ch2 == b"G":
+                return "home"
+            elif ch2 == b"O":
+                return "end"
+            elif ch2 == b"I":
+                return "page_up"
+            elif ch2 == b"Q":
+                return "page_down"
+            return ""
+        elif ch in (b"\r", b"\n"):
+            return "enter"
+        elif ch == b"\x1b":
+            return "escape"
+        elif ch in (b"\x08", b"\x7f"):
+            return "backspace"
         else:
             try:
-                return ch.decode('utf-8', errors='ignore')
+                return ch.decode("utf-8", errors="ignore")
             except Exception:
-                return ''
+                return ""
     else:
-        import tty
         import termios
+        import tty
+
         if not sys.stdin.isatty():
-            return 'enter'
+            return "enter"
         fd = sys.stdin.fileno()
         old_settings = termios.tcgetattr(fd)
         try:
             tty.setraw(fd)
             ch = sys.stdin.read(1)
-            if ch == '\x1b':
-                ch2 = sys.stdin.read(1) if select_stdin() else ''
-                if ch2 == '[':
+            if ch == "\x1b":
+                ch2 = sys.stdin.read(1) if select_stdin() else ""
+                if ch2 == "[":
                     ch3 = sys.stdin.read(1)
-                    if ch3 == 'A':
-                        return 'up'
-                    elif ch3 == 'B':
-                        return 'down'
-                    elif ch3 == 'C':
-                        return 'right'
-                    elif ch3 == 'D':
-                        return 'left'
-                return 'escape'
-            elif ch in ('\r', '\n'):
-                return 'enter'
-            elif ch in ('\x08', '\x7f'):
-                return 'backspace'
+                    if ch3 == "A":
+                        return "up"
+                    elif ch3 == "B":
+                        return "down"
+                    elif ch3 == "C":
+                        return "right"
+                    elif ch3 == "D":
+                        return "left"
+                return "escape"
+            elif ch in ("\r", "\n"):
+                return "enter"
+            elif ch in ("\x08", "\x7f"):
+                return "backspace"
             return ch
         finally:
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
@@ -105,28 +99,31 @@ def read_key() -> str:
 
 def select_stdin() -> bool:
     import select
+
     dr, _, _ = select.select([sys.stdin], [], [], 0.05)
     return bool(dr)
 
 
 def clear_terminal():
-    os.system('cls' if os.name == 'nt' else 'clear')
+    os.system("cls" if os.name == "nt" else "clear")
 
 
 def render_picker_view(
     title: str,
-    items: List[Dict[str, Any]],
+    items: list[dict[str, Any]],
     selected_idx: int,
     filter_query: str = "",
     page_size: int = 10,
-    endpoint_name: str = ""
+    endpoint_name: str = "",
 ):
     """Renders the interactive arrow-key model selection screen."""
     clear_terminal()
 
     # Header Card
     header_text = Text()
-    header_text.append("⚡ Select AI Model from Endpoint Catalog ⚡\n", style="bold cyan")
+    header_text.append(
+        "⚡ Select AI Model from Endpoint Catalog ⚡\n", style="bold cyan"
+    )
     if endpoint_name:
         header_text.append("Target Endpoint: ", style="bold grey70")
         header_text.append(f"{endpoint_name}\n", style="bright_white")
@@ -140,14 +137,34 @@ def render_picker_view(
     header_text.append("[Esc / q]", style="bold bright_white")
     header_text.append(" to go back.", style="grey78")
 
-    console.print(Panel(header_text, title=f"[bold grey78]{title}[/bold grey78]", border_style="grey50", box=ROUNDED, padding=(0, 2)))
+    console.print(
+        Panel(
+            header_text,
+            title=f"[bold grey78]{title}[/bold grey78]",
+            border_style="grey50",
+            box=ROUNDED,
+            padding=(0, 2),
+        )
+    )
     console.print()
 
     if filter_query:
-        console.print(f"[bold cyan]🔍 Filter Query:[/bold cyan] [bold white]{filter_query}[/bold white] [dim](Press Esc to clear filter)[/dim]\n")
+        console.print(
+            f"[bold cyan]🔍 Filter Query:[/bold cyan] "
+            f"[bold white]{filter_query}[/bold white] "
+            "[dim](Press Esc to clear filter)[/dim]\n"
+        )
 
     if not items:
-        console.print(Panel("[yellow]No models matched your filter query.[/yellow]\n[dim]Press [Backspace] to modify filter or [Esc] to reset.[/dim]", border_style="yellow", box=ROUNDED))
+        console.print(
+            Panel(
+                "[yellow]No models matched your filter query.[/yellow]\n"
+                "[dim]Press [Backspace] to modify filter "
+                "or [Esc] to reset.[/dim]",
+                border_style="yellow",
+                box=ROUNDED,
+            )
+        )
         console.print()
         return
 
@@ -165,7 +182,14 @@ def render_picker_view(
     table.add_column("Context / Spec", width=20, style="dim grey78")
 
     if start_idx > 0:
-        table.add_row("", "", f"[dim grey50]▲ ({start_idx} more models above - scroll up)...[/dim grey50]", "", "")
+        table.add_row(
+            "",
+            "",
+            f"[dim grey50]▲ ({start_idx} more models above - "
+            "scroll up)...[/dim grey50]",
+            "",
+            "",
+        )
 
     for idx in range(start_idx, end_idx):
         item = items[idx]
@@ -174,13 +198,20 @@ def render_picker_view(
         m_id = item.get("id", "Unknown")
         owner = item.get("owned_by") or "ai"
         ctx = item.get("context_window") or item.get("context_length")
-        ctx_str = f"{ctx:,} tokens" if isinstance(ctx, int) else (str(ctx) if ctx else "Standard")
+        ctx_str = (
+            f"{ctx:,} tokens"
+            if isinstance(ctx, int)
+            else (str(ctx) if ctx else "Standard")
+        )
 
         if item.get("is_custom_action"):
             if is_selected:
                 cursor = "[bold bright_cyan]❯[/bold bright_cyan]"
                 num_str = "[bold bright_cyan]★[/bold bright_cyan]"
-                m_str = f"[bold bright_yellow on #2e2815] {m_id} [/bold bright_yellow on #2e2815]"
+                m_str = (
+                    f"[bold bright_yellow on #2e2815] {m_id} "
+                    "[/bold bright_yellow on #2e2815]"
+                )
                 o_str = "[yellow]Custom[/yellow]"
                 c_str = "[dim yellow]Manual Entry[/dim yellow]"
             else:
@@ -193,7 +224,10 @@ def render_picker_view(
             if is_selected:
                 cursor = "[bold bright_cyan]❯[/bold bright_cyan]"
                 num_str = "[bold bright_cyan]↺[/bold bright_cyan]"
-                m_str = f"[bold bright_cyan on #1b2838] {m_id} [/bold bright_cyan on #1b2838]"
+                m_str = (
+                    f"[bold bright_cyan on #1b2838] {m_id} "
+                    "[/bold bright_cyan on #1b2838]"
+                )
                 o_str = "[cyan]Endpoint[/cyan]"
                 c_str = "[dim cyan]Re-scan API[/dim cyan]"
             else:
@@ -206,7 +240,10 @@ def render_picker_view(
             if is_selected:
                 cursor = "[bold bright_cyan]❯[/bold bright_cyan]"
                 num_str = f"[bold bright_cyan]{idx + 1}[/bold bright_cyan]"
-                m_str = f"[bold bright_white on #232d3f] {m_id} [/bold bright_white on #232d3f]"
+                m_str = (
+                    f"[bold bright_white on #232d3f] {m_id} "
+                    "[/bold bright_white on #232d3f]"
+                )
                 o_str = f"[bold cyan]{owner}[/bold cyan]"
                 c_str = f"[bright_white]{ctx_str}[/bright_white]"
             else:
@@ -219,14 +256,23 @@ def render_picker_view(
         table.add_row(cursor, num_str, m_str, o_str, c_str)
 
     if end_idx < total_items:
-        table.add_row("", "", f"[dim grey50]▼ ({total_items - end_idx} more models below - scroll down)...[/dim grey50]", "", "")
+        table.add_row(
+            "",
+            "",
+            f"[dim grey50]▼ ({total_items - end_idx} more models below - "
+            "scroll down)...[/dim grey50]",
+            "",
+            "",
+        )
 
     console.print(table)
     console.print()
 
     # Footer status
     footer = Text()
-    footer.append(f"Showing {selected_idx + 1} of {total_items} options  |  ", style="bold grey70")
+    footer.append(
+        f"Showing {selected_idx + 1} of {total_items} options  |  ", style="bold grey70"
+    )
     footer.append("Press [Enter] to Confirm Selection", style="bold green")
     console.print(Align.center(footer))
     console.print()
@@ -234,21 +280,26 @@ def render_picker_view(
 
 def interactive_model_picker(
     client,
-    cached_models_raw: List[Dict[str, Any]],
+    cached_models_raw: list[dict[str, Any]],
     title: str = "Select AI Model",
-    endpoint_name: str = ""
-) -> Tuple[Optional[str], List[Dict[str, Any]]]:
+    endpoint_name: str = "",
+) -> tuple[str | None, list[dict[str, Any]]]:
     """
     Main interactive entry point for selecting a model.
     1. Fetches models if cached list is empty.
     2. Renders arrow-key interactive navigator.
-    3. Returns selected model ID (or custom model entered by user), and updated models cache.
+    3. Returns selected model ID (or custom model entered by user),
+       and updated models cache.
     """
     models = list(cached_models_raw)
 
     # 1. Fetch if empty
     if not models:
-        with Status("[bold cyan]Fetching available AI models from endpoint catalog...[/bold cyan]", spinner="dots"):
+        with Status(
+            "[bold cyan]Fetching available AI models "
+            "from endpoint catalog...[/bold cyan]",
+            spinner="dots",
+        ):
             fetch_res = client.fetch_models()
 
         if fetch_res["success"] and fetch_res["models"]:
@@ -256,15 +307,18 @@ def interactive_model_picker(
         else:
             clear_terminal()
             err_msg = fetch_res.get("error", "Could not retrieve models list.")
-            console.print(Panel(
-                f"[bold red]❌ Failed to Fetch Models from Endpoint[/bold red]\n\n"
-                f"[bold white]Diagnostic Reason:[/bold white] [bright_red]{err_msg}[/bright_red]\n\n"
-                f"Would you like to enter a model name manually or retry?",
-                title="[bold red]Model Discovery Error[/bold red]",
-                border_style="red",
-                box=ROUNDED,
-                padding=(1, 2)
-            ))
+            console.print(
+                Panel(
+                    f"[bold red]❌ Failed to Fetch Models from Endpoint[/bold red]\n\n"
+                    "[bold white]Diagnostic Reason:[/bold white] "
+                    f"[bright_red]{err_msg}[/bright_red]\n\n"
+                    f"Would you like to enter a model name manually or retry?",
+                    title="[bold red]Model Discovery Error[/bold red]",
+                    border_style="red",
+                    box=ROUNDED,
+                    padding=(1, 2),
+                )
+            )
             console.print()
             console.print("  [bold cyan][1][/bold cyan] Enter Model ID Manually")
             console.print("  [bold cyan][2][/bold cyan] Retry Discovery")
@@ -273,7 +327,10 @@ def interactive_model_picker(
 
             sub_choice = Prompt.ask("[bold grey85]❯ Choice[/bold grey85]", default="1")
             if sub_choice == "1":
-                custom_id = Prompt.ask("[bold grey85]❯ Enter Model ID (e.g. gpt-4o, claude-opus-5)[/bold grey85]").strip()
+                custom_id = Prompt.ask(
+                    "[bold grey85]❯ Enter Model ID "
+                    "(e.g. gpt-4o, claude-opus-5)[/bold grey85]"
+                ).strip()
                 return (custom_id if custom_id else None), models
             elif sub_choice == "2":
                 return interactive_model_picker(client, [], title, endpoint_name)
@@ -282,7 +339,7 @@ def interactive_model_picker(
 
     # Check if stdin is interactive
     is_interactive = True
-    if os.name != 'nt' and not sys.stdin.isatty():
+    if os.name != "nt" and not sys.stdin.isatty():
         is_interactive = False
 
     # 2. Interactive Selection Loop
@@ -290,7 +347,7 @@ def interactive_model_picker(
     selected_idx = 0
 
     while True:
-        filtered_items: List[Dict[str, Any]] = []
+        filtered_items: list[dict[str, Any]] = []
         q = filter_query.lower().strip()
 
         for m in models:
@@ -298,24 +355,36 @@ def interactive_model_picker(
             if not q or q in m_id.lower() or q in str(m.get("owned_by", "")).lower():
                 filtered_items.append(m)
 
-        filtered_items.append({
-            "id": "✏ [Enter Custom Model ID Manually]",
-            "owned_by": "custom",
-            "is_custom_action": True,
-        })
-        filtered_items.append({
-            "id": "↺ [Refresh Models List from API]",
-            "owned_by": "api",
-            "is_refresh_action": True,
-        })
+        filtered_items.append(
+            {
+                "id": "✏ [Enter Custom Model ID Manually]",
+                "owned_by": "custom",
+                "is_custom_action": True,
+            }
+        )
+        filtered_items.append(
+            {
+                "id": "↺ [Refresh Models List from API]",
+                "owned_by": "api",
+                "is_refresh_action": True,
+            }
+        )
 
         if not is_interactive:
             clear_terminal()
-            console.print(Panel("[bold bright_white]Discovered AI Models List[/bold bright_white]", border_style="grey50", box=ROUNDED))
+            console.print(
+                Panel(
+                    "[bold bright_white]Discovered AI Models List[/bold bright_white]",
+                    border_style="grey50",
+                    box=ROUNDED,
+                )
+            )
             for i, itm in enumerate(filtered_items, 1):
                 console.print(f"  [{i}] {itm.get('id')} ({itm.get('owned_by', '')})")
             console.print()
-            raw_choice = Prompt.ask("Select Model Number or enter custom name", default="1")
+            raw_choice = Prompt.ask(
+                "Select Model Number or enter custom name", default="1"
+            )
             if raw_choice.isdigit():
                 c_i = int(raw_choice) - 1
                 if 0 <= c_i < len(filtered_items):
@@ -324,7 +393,9 @@ def interactive_model_picker(
                         custom_val = Prompt.ask("Enter custom model ID").strip()
                         return (custom_val if custom_val else None), models
                     elif sel.get("is_refresh_action"):
-                        return interactive_model_picker(client, [], title, endpoint_name)
+                        return interactive_model_picker(
+                            client, [], title, endpoint_name
+                        )
                     return sel.get("id"), models
             return (raw_choice if raw_choice else None), models
 
@@ -334,49 +405,72 @@ def interactive_model_picker(
             selected_idx=selected_idx,
             filter_query=filter_query,
             page_size=10,
-            endpoint_name=endpoint_name
+            endpoint_name=endpoint_name,
         )
 
         key = read_key()
 
-        if key == 'up':
+        if key == "up":
             selected_idx = max(0, selected_idx - 1)
-        elif key == 'down':
+        elif key == "down":
             selected_idx = min(len(filtered_items) - 1, selected_idx + 1)
-        elif key == 'page_up':
+        elif key == "page_up":
             selected_idx = max(0, selected_idx - 8)
-        elif key == 'page_down':
+        elif key == "page_down":
             selected_idx = min(len(filtered_items) - 1, selected_idx + 8)
-        elif key == 'home':
+        elif key == "home":
             selected_idx = 0
-        elif key == 'end':
+        elif key == "end":
             selected_idx = len(filtered_items) - 1
-        elif key == 'escape' or (key == 'q' and not filter_query) or (key == 'b' and not filter_query):
+        elif (
+            key == "escape"
+            or (key == "q" and not filter_query)
+            or (key == "b" and not filter_query)
+        ):
             if filter_query:
                 filter_query = ""
                 selected_idx = 0
             else:
                 return None, models
-        elif key == 'backspace':
+        elif key == "backspace":
             if filter_query:
                 filter_query = filter_query[:-1]
                 selected_idx = 0
-        elif key == 'enter':
+        elif key == "enter":
             if 0 <= selected_idx < len(filtered_items):
                 chosen = filtered_items[selected_idx]
                 if chosen.get("is_custom_action"):
                     clear_terminal()
-                    console.print(Panel("[bold bright_white]Enter Custom Model Identifier[/bold bright_white]", border_style="yellow", box=ROUNDED))
-                    custom_id = Prompt.ask("[bold grey85]❯ Target Model ID[/bold grey85]").strip()
+                    console.print(
+                        Panel(
+                            "[bold bright_white]Enter Custom "
+                            "Model Identifier[/bold bright_white]",
+                            border_style="yellow",
+                            box=ROUNDED,
+                        )
+                    )
+                    custom_id = Prompt.ask(
+                        "[bold grey85]❯ Target Model ID[/bold grey85]"
+                    ).strip()
                     return (custom_id if custom_id else None), models
                 elif chosen.get("is_refresh_action"):
                     return interactive_model_picker(client, [], title, endpoint_name)
                 else:
                     return chosen.get("id"), models
-        elif key == '/':
+        elif key == "/":
             clear_terminal()
-            console.print(Panel("[bold cyan]🔍 Filter AI Models[/bold cyan]\n[dim]Enter search keyword to filter models list.[/dim]", border_style="cyan", box=ROUNDED))
-            filter_query = Prompt.ask("[bold grey85]❯ Search Keyword[/bold grey85]", default=filter_query).strip()
+            console.print(
+                Panel(
+                    "[bold cyan]🔍 Filter AI Models[/bold cyan]\n"
+                    "[dim]Enter search keyword to filter "
+                    "models list.[/dim]",
+                    border_style="cyan",
+                    box=ROUNDED,
+                )
+            )
+            filter_query = Prompt.ask(
+                "[bold grey85]❯ Search Keyword[/bold grey85]", default=filter_query
+            ).strip()
             selected_idx = 0
         elif len(key) == 1 and key.isprintable():
             filter_query += key

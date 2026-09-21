@@ -23,7 +23,7 @@
 
 - 🌈 **بنر متنی ASCII با گرادیانت رنگی RGB**: نمایش تایپوگرافی سه‌بعدی رنگی با پشتیبانی امن و بدون خطا از اینکودینگ UTF-8 در کنسول‌های مختلف ویندوز و لینوکس.
 - 🥊 **مسابقه مقایسه رو‌در‌روی مدل‌ها (Model Arena)**:
-  - بنچمارک همزمان دو یا چند مدل (`/compare` یا `--compare model1,model2`) روی پرامپت یکسان.
+  - بنچمارک همزمان دو یا چند مدل (`/compare` یا `--compare --models "model1,model2"`) روی پرامپت یکسان.
   - اعطای مدال‌های جدول افتخارات به برترین‌ها:
     - 🏆 **سریع‌ترین TTFT** (کمترین زمان تا شروع تولید اولین توکن)
     - 🚀 **بیشترین نرخ تولید توکن (TPS)** (قهرمان سرعت پردازش و Throughput)
@@ -33,7 +33,7 @@
   - سنجش دقیق خطاهای Rate Limit (HTTP 429)، افت ظرفیت سرور (HTTP 503)، نرخ کل توکن بر ثانیه و تاخیر صدک P95 زیر بار.
 - 📈 **بنچمارک آماری چندمرحله‌ای و نمره پایداری (Stability Score)**:
   - امکان اجرای تکراری تست از ۱ تا ۲۰ دور (`/bench` با تنظیم تعداد دور).
-  - محاسبه آماری **حداقل، حداکثر، میانگین، میانه و صدک‌های P95/P99**.
+  - محاسبه آماری **حداقل، حداکثر، میانگین، میانه، صدک P95 و انحراف معیار**.
   - تفکیک تاخیر اتصال اولیه (Cold-Start TTFT) از اتصالات گرم (Warm TTFT) و محاسبه **درصد پایداری** از روی واریانس سرعت.
 - 🧠 **تحلیل و تفکیک توکن‌های تفکر (Reasoning Tokens)**:
   - استخراج خودکار و تمایز بخش تفکر (`<think>` یا `reasoning_content`) در مدل‌هایی نظیر DeepSeek-R1 و OpenAI o1/o3.
@@ -55,23 +55,33 @@
 - 🔎 **صفحه اختصاصی وضعیت و سلامت مدل‌ها (Model Discovery Board)**:
   - تست سلامت موازی تمامی مدل‌ها با نوار پیشرفت زنده و گزارش شفاف علت خطاها.
 - 💾 **مدیریت پروفایل و تاریخچه عملکرد**:
-  - تنظیمات از پیش آماده (Presets) برای **سربراس (Cerebras با سرعت فوق‌العاده ۱۰۰۰+ توکن/ثانیه)، Groq Cloud، OpenRouter، DeepSeek، Mistral، Together AI، Fireworks AI، xAI (Grok)، Ollama و vLLM**.
+  - تنظیمات از پیش آماده (Presets) برای **OpenAI، سربراس (Cerebras با سرعت فوق‌العاده ۱۰۰۰+ توکن/ثانیه)، Groq Cloud، OpenRouter، DeepSeek، Mistral، Together AI، Fireworks AI، xAI (Grok)، Ollama و vLLM**.
   - مشاهده و مرور تاریخچه تست‌های قبلی با امکان پاکسازی یا خروجی گرفتن.
 
 ---
 
 ## 🚀 نصب و اجرا
 
-### ۱. پیش‌نیازها
-- پایتون نسخه 3.9 به بالا
-- نصب کتابخانه‌های مورد نیاز:
+### ۱. نصب
+
+مخزن را کلون کرده و وابستگی‌ها را نصب کنید:
 
 ```bash
-pip install rich httpx
+git clone https://github.com/Aporis3674/apitestllm.git
+cd apitestllm
+uv sync
+```
+
+یا اگر uv ندارید، از فایل requirements استفاده کنید:
+
+```bash
+pip install -r requirements.txt
 ```
 
 ### ۲. اجرای تعاملی در ترمینال
 ```bash
+uv run apitestllm
+# یا اگر uv ندارید:
 python api_test.py
 ```
 *در ویندوز می‌توانید مستقیماً فایل `run.bat` را با دو بار کلیک اجرا کنید.*
@@ -84,28 +94,74 @@ python api_test.py
 
 ### ۱. اسکن سریع سلامت مدل‌ها
 ```bash
-python api_test.py --scan --base-url "https://api.openai.com/v1" --api-key "sk-..."
+uv run apitestllm --scan --base-url "https://api.openai.com/v1" --api-key "sk-..."
 ```
 
 ### ۲. بنچمارک سرعت با شروط کیفی CI/CD
 ```bash
-python api_test.py --benchmark --model "gpt-4o-mini" --runs 3 --max-ttft 300 --min-tps 50 --output "benchmark.html"
+uv run apitestllm --benchmark --model "gpt-4o-mini" --runs 3 --max-ttft 300 --min-tps 50 --output "benchmark.html"
 ```
 *اگر تاخیر TTFT بیش از ۳۰۰ میلی‌ثانیه شود یا سرعت تولید به زیر ۵۰ توکن بر ثانیه بیفتد، با کد خطای `1` خارج می‌شود.*
 
 ### ۳. مقایسه رو‌در‌روی چند مدل در مسابقه Arena
 ```bash
-python api_test.py --compare --models "gpt-4o,gpt-4o-mini" --prompt "Explain photosynthesis" --output "comparison.md"
+uv run apitestllm --compare --models "gpt-4o,gpt-4o-mini" --prompt "Explain photosynthesis" --output "comparison.md"
 ```
 
 ### ۴. تست استرس و تحمل همزمانی
 ```bash
-python api_test.py --stress --model "gpt-4o-mini" --concurrency 10 --requests 30 --min-success-rate 95 --output "stress.json"
+uv run apitestllm --stress --model "gpt-4o-mini" --concurrency 10 --requests 30 --min-success-rate 95 --output "stress.json"
 ```
 
 ### ۵. خروجی JSON برای ابزار `jq`
 ```bash
-python api_test.py --benchmark --model "gpt-4o-mini" --json | jq .ttft_ms
+uv run apitestllm --benchmark --model "gpt-4o-mini" --json | jq .ttft_ms
+```
+
+---
+
+## 🛠 نمونه ورک‌فلو GitHub Actions
+
+این بررسی خودکار سلامت اندپوینت را به `.github/workflows/ai-benchmark.yml` اضافه کنید:
+
+```yaml
+name: AI Endpoint SLA Check
+
+on:
+  schedule:
+    - cron: '0 */6 * * *' # هر ۶ ساعت یک‌بار
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+
+      - name: Run Benchmark & Assert SLAs
+        env:
+          API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          uv run apitestllm \
+            --benchmark \
+            --base-url "https://api.openai.com/v1" \
+            --api-key "$API_KEY" \
+            --model "gpt-4o-mini" \
+            --runs 3 \
+            --max-ttft 350 \
+            --min-tps 45 \
+            --output "benchmark_report.html"
+
+      - name: Upload Telemetry Artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-report
+          path: benchmark_report.html
 ```
 
 ---
@@ -164,17 +220,27 @@ python api_test.py --benchmark --model "gpt-4o-mini" --json | jq .ttft_ms
 
 ```
 api-test-cli/
-├── api_test.py       # نقطه ورود اصلی برنامه و کنترلر آرگومان‌های خط فرمان
-├── cli.py            # حلقه تعاملی REPL، منوها و موتور اجرای غیرتعاملی
-├── palette.py        # موتور انیمیشنی پیش‌نمایش دستورات اسلش و Autocomplete
-├── picker.py         # انتخاب تعاملی مدل با کلیدهای جهت‌نما و فیلتر زنده
-├── client.py         # موتور HTTP، تحلیل SSE، بنچمارک آماری، مقایسه و تست استرس
-├── exporter.py       # صادرکننده گزارش به فرمت‌های HTML، JSON، CSV و Markdown
-├── ui.py             # رابط کاربری با بنر رنگی RGB، جدول مسابقه، کارت‌های تله‌متری
-├── config.py         # مدیریت ماندگار پروفایل‌ها، تاریخچه و پریست‌های ابری و محلی
-├── run.bat           # لانچر تک‌کلیکه برای سیستم‌عامل ویندوز
-├── requirements.txt  # وابستگی‌های پروژه
-└── test_suite.py     # ۲۴ آزمون خودکار واحد و یکپارچه‌سازی آفلاین
+├── src/apitestllm/
+│   ├── __init__.py
+│   ├── __main__.py      # نقطه ورود `python -m apitestllm`
+│   ├── _compat.py       # UTF-8 هلپر مشترک
+│   ├── cli.py           # حلقه تعاملی REPL، منوها و موتور اجرای غیرتعاملی
+│   ├── client.py        # موتور HTTP، تحلیل SSE، بنچمارک آماری، مقایسه و تست استرس
+│   ├── config.py        # مدیریت ماندگار پروفایل‌ها، تاریخچه و پریست‌های ابری و محلی
+│   ├── exporter.py      # صادرکننده گزارش به فرمت‌های HTML، JSON، CSV و Markdown
+│   ├── ui.py            # رابط کاربری با بنر رنگی RGB، جدول مسابقه، کارت‌های تله‌متری
+│   ├── palette.py       # موتور انیمیشنی پیش‌نمایش دستورات اسلش و Autocomplete
+│   └── picker.py        # انتخاب تعاملی مدل با کلیدهای جهت‌نما و فیلتر زنده
+├── tests/
+│   └── test_suite.py    # ۲۴ آزمون خودکار واحد و یکپارچه‌سازی آفلاین
+├── scripts/
+│   ├── export-requirements.sh  # requirements.txt تبدیه pyproject.toml تبدیل
+│   └── export_requirements.py  # requirements.txt تبدیه pyproject.toml تبدیل
+├── api_test.py          # uv اجرای مستقیم برای سیستم‌های بدون (در صورت وجود uv از `uv run apitestllm` استفاده کنید)
+├── run.bat              # لانچر تک‌کلیکه برای سیستم‌عامل ویندوز
+├── pyproject.toml
+├── uv.lock              # درخت وابستگی قفل‌شده
+└── requirements.txt     # وابستگی‌های پروژه
 ```
 
 ---
@@ -184,7 +250,13 @@ api-test-cli/
 آزمون‌های خودکار پروژه کاملاً آفلاین بوده و بدون نیاز به کلید یا دسترسی اینترنت اجرا می‌شوند:
 
 ```bash
-python -m unittest discover -s . -p "test_suite.py" -v
+uv sync --group dev
+uv run pytest .
+```
+ هر ۲۴ تست، پیکربندی، محاسبات آماری، پارس SSE، صادرکننده‌ها، رندرهای UI، پارس آرگومان‌ها و آستانه‌های خطای CI را پوشش می‌دهند:
+
+```
+24 passed in 0.44s
 ```
 
 ---

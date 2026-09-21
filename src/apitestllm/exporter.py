@@ -2,15 +2,14 @@
 API TEST CLI - Telemetry & Benchmark Exporter (JSON, CSV, Markdown, HTML)
 """
 
-import os
-import json
 import csv
-import time
+import json
+import os
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Any
 
 
-def export_to_json(data: Dict[str, Any], filepath: str) -> str:
+def export_to_json(data: dict[str, Any], filepath: str) -> str:
     """Exports benchmark or test results to formatted JSON."""
     out_dir = os.path.dirname(os.path.abspath(filepath))
     if out_dir:
@@ -28,7 +27,7 @@ def export_to_json(data: Dict[str, Any], filepath: str) -> str:
     return os.path.abspath(filepath)
 
 
-def export_to_csv(data: Dict[str, Any], filepath: str) -> str:
+def export_to_csv(data: dict[str, Any], filepath: str) -> str:
     """Exports benchmark, comparison, or stress test results to CSV format."""
     out_dir = os.path.dirname(os.path.abspath(filepath))
     if out_dir:
@@ -39,18 +38,31 @@ def export_to_csv(data: Dict[str, Any], filepath: str) -> str:
 
         # Case 1: Model Comparison
         if "models" in data and isinstance(data["models"], list):
-            writer.writerow(["Model", "Status", "TTFT (ms)", "Total Latency (ms)", "TPS (tokens/s)", "Tokens", "HTTP Code", "Error"])
+            writer.writerow(
+                [
+                    "Model",
+                    "Status",
+                    "TTFT (ms)",
+                    "Total Latency (ms)",
+                    "TPS (tokens/s)",
+                    "Tokens",
+                    "HTTP Code",
+                    "Error",
+                ]
+            )
             for m in data["models"]:
-                writer.writerow([
-                    m.get("model", "unknown"),
-                    "OK" if m.get("success") else "FAILED",
-                    m.get("ttft_ms", 0.0),
-                    m.get("total_latency_ms", 0.0),
-                    m.get("tps", 0.0),
-                    m.get("tokens", 0),
-                    m.get("status_code", 0),
-                    m.get("error") or "",
-                ])
+                writer.writerow(
+                    [
+                        m.get("model", "unknown"),
+                        "OK" if m.get("success") else "FAILED",
+                        m.get("ttft_ms", 0.0),
+                        m.get("total_latency_ms", 0.0),
+                        m.get("tps", 0.0),
+                        m.get("tokens", 0),
+                        m.get("status_code", 0),
+                        m.get("error") or "",
+                    ]
+                )
 
         # Case 2: Stress Test
         elif "concurrency" in data and "results" in data:
@@ -64,16 +76,27 @@ def export_to_csv(data: Dict[str, Any], filepath: str) -> str:
             writer.writerow(["Aggregate TPS", data.get("aggregate_tps", 0.0)])
             writer.writerow(["Duration (sec)", data.get("duration_sec", 0.0)])
             writer.writerow([])
-            writer.writerow(["Request #", "Status", "Latency (ms)", "Tokens", "HTTP Status", "Error"])
+            writer.writerow(
+                [
+                    "Request #",
+                    "Status",
+                    "Latency (ms)",
+                    "Tokens",
+                    "HTTP Status",
+                    "Error",
+                ]
+            )
             for idx, r in enumerate(data.get("results", []), 1):
-                writer.writerow([
-                    idx,
-                    "SUCCESS" if r.get("success") else "FAILED",
-                    r.get("latency_ms", 0.0),
-                    r.get("tokens", 0),
-                    r.get("status_code", 0),
-                    r.get("error") or "",
-                ])
+                writer.writerow(
+                    [
+                        idx,
+                        "SUCCESS" if r.get("success") else "FAILED",
+                        r.get("latency_ms", 0.0),
+                        r.get("tokens", 0),
+                        r.get("status_code", 0),
+                        r.get("error") or "",
+                    ]
+                )
 
         # Case 3: Single or Multi-run Benchmark
         else:
@@ -82,34 +105,51 @@ def export_to_csv(data: Dict[str, Any], filepath: str) -> str:
             writer.writerow(["Success", data.get("success", False), ""])
             writer.writerow(["TTFT", data.get("ttft_ms", 0.0), "ms"])
             writer.writerow(["Total Latency", data.get("total_latency_ms", 0.0), "ms"])
-            writer.writerow(["Generation Latency", data.get("generation_latency_ms", 0.0), "ms"])
+            writer.writerow(
+                ["Generation Latency", data.get("generation_latency_ms", 0.0), "ms"]
+            )
             writer.writerow(["Throughput", data.get("tps", 0.0), "tokens/sec"])
             writer.writerow(["Tokens", data.get("tokens", 0), "tokens"])
 
             if "stats" in data and isinstance(data["stats"], dict):
                 st = data["stats"]
-                writer.writerow(["Stability Score", st.get("stability_score", 100.0), "%"])
-                writer.writerow(["Cold Start TTFT", st.get("cold_start_ttft_ms", 0.0), "ms"])
+                writer.writerow(
+                    ["Stability Score", st.get("stability_score", 100.0), "%"]
+                )
+                writer.writerow(
+                    ["Cold Start TTFT", st.get("cold_start_ttft_ms", 0.0), "ms"]
+                )
                 writer.writerow(["Warm TTFT", st.get("warm_ttft_ms", 0.0), "ms"])
 
             # Individual runs breakdown
             if "runs" in data and len(data["runs"]) > 1:
                 writer.writerow([])
-                writer.writerow(["Run #", "TTFT (ms)", "Total Latency (ms)", "TPS", "Tokens", "Status"])
+                writer.writerow(
+                    [
+                        "Run #",
+                        "TTFT (ms)",
+                        "Total Latency (ms)",
+                        "TPS",
+                        "Tokens",
+                        "Status",
+                    ]
+                )
                 for r in data["runs"]:
-                    writer.writerow([
-                        r.get("run_number", 1),
-                        r.get("ttft_ms", 0.0),
-                        r.get("total_latency_ms", 0.0),
-                        r.get("tps", 0.0),
-                        r.get("tokens", 0),
-                        "OK" if r.get("success") else "FAILED",
-                    ])
+                    writer.writerow(
+                        [
+                            r.get("run_number", 1),
+                            r.get("ttft_ms", 0.0),
+                            r.get("total_latency_ms", 0.0),
+                            r.get("tps", 0.0),
+                            r.get("tokens", 0),
+                            "OK" if r.get("success") else "FAILED",
+                        ]
+                    )
 
     return os.path.abspath(filepath)
 
 
-def export_to_markdown(data: Dict[str, Any], filepath: str) -> str:
+def export_to_markdown(data: dict[str, Any], filepath: str) -> str:
     """Exports telemetry to a clean GitHub-flavored Markdown report."""
     out_dir = os.path.dirname(os.path.abspath(filepath))
     if out_dir:
@@ -125,7 +165,7 @@ def export_to_markdown(data: Dict[str, Any], filepath: str) -> str:
     # Case 1: Model Comparison Matrix
     if "models" in data and isinstance(data["models"], list):
         prompt = data.get("prompt", "")
-        lines.append(f"### 🥊 Model Arena Comparison")
+        lines.append("### 🥊 Model Arena Comparison")
         if prompt:
             lines.append(f"**Prompt:** `{prompt}`\n")
 
@@ -138,29 +178,45 @@ def export_to_markdown(data: Dict[str, Any], filepath: str) -> str:
                 lines.append(f"- ⚡ **Fastest TTFT:** `{w['model']}` ({w['value']} ms)")
             if "highest_tps" in winners:
                 w = winners["highest_tps"]
-                lines.append(f"- 🚀 **Highest Throughput:** `{w['model']}` ({w['value']} tokens/sec)")
+                lines.append(
+                    f"- 🚀 **Highest Throughput:** `{w['model']}`"
+                    f" ({w['value']} tokens/sec)"
+                )
             if "lowest_latency" in winners:
                 w = winners["lowest_latency"]
-                lines.append(f"- ⏱ **Fastest Overall:** `{w['model']}` ({w['value']} ms)")
+                lines.append(
+                    f"- ⏱ **Fastest Overall:** `{w['model']}` ({w['value']} ms)"
+                )
             lines.append("")
 
-        lines.append("| Model | Status | TTFT (ms) | Total Latency | Throughput | Tokens |")
+        lines.append(
+            "| Model | Status | TTFT (ms) | Total Latency | Throughput | Tokens |"
+        )
         lines.append("| :--- | :---: | :---: | :---: | :---: | :---: |")
         for m in data["models"]:
             status = "🟢 OK" if m.get("success") else "🔴 FAILED"
             lines.append(
                 f"| `{m.get('model')}` | {status} | {m.get('ttft_ms', 0):.1f} ms | "
-                f"{m.get('total_latency_ms', 0):.1f} ms | {m.get('tps', 0):.1f} T/s | {m.get('tokens', 0)} |"
+                f"{m.get('total_latency_ms', 0):.1f} ms | "
+                f"{m.get('tps', 0):.1f} T/s | {m.get('tokens', 0)} |"
             )
 
     # Case 2: Stress Test
     elif "concurrency" in data and "results" in data:
-        lines.append(f"### 🌪 Concurrency & Load Stress Test")
+        lines.append("### 🌪 Concurrency & Load Stress Test")
         lines.append(f"- **Target Model:** `{data.get('model')}`")
-        lines.append(f"- **Concurrency Level:** `{data.get('concurrency')} parallel workers`")
+        lines.append(
+            f"- **Concurrency Level:** `{data.get('concurrency')} parallel workers`"
+        )
         lines.append(f"- **Total Requests:** `{data.get('total_requests')}`")
-        lines.append(f"- **Success Rate:** `{data.get('success_rate_pct')}%` ({data.get('successful_requests')}/{data.get('total_requests')})")
-        lines.append(f"- **Aggregate Throughput:** `{data.get('aggregate_tps')} tokens/sec`")
+        lines.append(
+            f"- **Success Rate:** `{data.get('success_rate_pct')}%`"
+            f" ({data.get('successful_requests')}"
+            f"/{data.get('total_requests')})"
+        )
+        lines.append(
+            f"- **Aggregate Throughput:** `{data.get('aggregate_tps')} tokens/sec`"
+        )
         lines.append(f"- **Test Duration:** `{data.get('duration_sec')} s`\n")
 
         stats = data.get("latency_stats", {})
@@ -184,17 +240,40 @@ def export_to_markdown(data: Dict[str, Any], filepath: str) -> str:
         lines.append("")
         lines.append("| Metric | Measurement | Notes |")
         lines.append("| :--- | :---: | :--- |")
-        lines.append(f"| Target Model | `{model}` | HTTP {data.get('status_code', 200)} |")
-        lines.append(f"| TTFT (Time To First Token) | `{data.get('ttft_ms', 0):.1f} ms` | Time to start output |")
-        lines.append(f"| Total Response Latency | `{data.get('total_latency_ms', 0):.1f} ms` | Stream duration |")
-        lines.append(f"| Token Generation Speed | `{data.get('tps', 0):.1f} tokens/sec` | Throughput |")
-        lines.append(f"| Tokens Generated | `{data.get('tokens', 0)} tokens` | ~{len(data.get('response_text', ''))} chars |")
+        lines.append(
+            f"| Target Model | `{model}` | HTTP {data.get('status_code', 200)} |"
+        )
+        lines.append(
+            f"| TTFT (Time To First Token) | `{data.get('ttft_ms', 0):.1f} ms` |"
+            " Time to start output |"
+        )
+        lines.append(
+            f"| Total Response Latency | `{data.get('total_latency_ms', 0):.1f} ms` |"
+            " Stream duration |"
+        )
+        lines.append(
+            f"| Token Generation Speed | `{data.get('tps', 0):.1f} tokens/sec` |"
+            " Throughput |"
+        )
+        lines.append(
+            f"| Tokens Generated | `{data.get('tokens', 0)} tokens` |"
+            f" ~{len(data.get('response_text', ''))} chars |"
+        )
 
         if "stats" in data:
             st = data["stats"]
-            lines.append(f"| Stability Score | `{st.get('stability_score', 100)}%` | Based on throughput variance |")
-            lines.append(f"| Cold Start TTFT | `{st.get('cold_start_ttft_ms', 0):.1f} ms` | Run #1 |")
-            lines.append(f"| Warm Average TTFT | `{st.get('warm_ttft_ms', 0):.1f} ms` | Runs #2+ |")
+            lines.append(
+                f"| Stability Score | `{st.get('stability_score', 100)}%` |"
+                " Based on throughput variance |"
+            )
+            lines.append(
+                f"| Cold Start TTFT | `{st.get('cold_start_ttft_ms', 0):.1f} ms` |"
+                " Run #1 |"
+            )
+            lines.append(
+                f"| Warm Average TTFT | `{st.get('warm_ttft_ms', 0):.1f} ms` |"
+                " Runs #2+ |"
+            )
 
         if data.get("response_text"):
             lines.append("\n#### 💬 Model Response Output")
@@ -207,7 +286,7 @@ def export_to_markdown(data: Dict[str, Any], filepath: str) -> str:
     return os.path.abspath(filepath)
 
 
-def export_to_html(data: Dict[str, Any], filepath: str) -> str:
+def export_to_html(data: dict[str, Any], filepath: str) -> str:
     """
     Exports telemetry to a standalone, modern, dark-mode HTML dashboard.
     Completely offline: zero external fonts or CDN scripts.
@@ -221,6 +300,11 @@ def export_to_html(data: Dict[str, Any], filepath: str) -> str:
     # Determine report type
     is_comparison = "models" in data and isinstance(data["models"], list)
     is_stress = "concurrency" in data and "results" in data
+
+    font_family_css = (
+        "    font-family: -apple-system, BlinkMacSystemFont,"
+        ' "Segoe UI", Roboto, Helvetica, Arial, sans-serif;'
+    )
 
     html_content = f"""<!DOCTYPE html>
 <html lang="en">
@@ -245,7 +329,7 @@ def export_to_html(data: Dict[str, Any], filepath: str) -> str:
   body {{
     background-color: var(--bg);
     color: var(--text-primary);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+{font_family_css}
     line-height: 1.6;
     padding: 2rem 1rem;
   }}
@@ -384,19 +468,32 @@ def export_to_html(data: Dict[str, Any], filepath: str) -> str:
         w_tps = winners.get("highest_tps", {}).get("model", "—")
         w_lat = winners.get("lowest_latency", {}).get("model", "—")
 
+        ttft_card = (
+            '      <div class="card-value" style="color: var(--green);'
+            f' font-size: 1.3rem;">{w_ttft}</div>'
+        )
+        tps_card = (
+            '      <div class="card-value" style="color: var(--accent);'
+            f' font-size: 1.3rem;">{w_tps}</div>'
+        )
+        lat_card = (
+            '      <div class="card-value" style="color: var(--purple);'
+            f' font-size: 1.3rem;">{w_lat}</div>'
+        )
+
         html_content += f"""
   <div class="grid">
     <div class="card">
       <div class="card-label">⚡ Fastest TTFT</div>
-      <div class="card-value" style="color: var(--green); font-size: 1.3rem;">{w_ttft}</div>
+{ttft_card}
     </div>
     <div class="card">
       <div class="card-label">🚀 Highest Throughput</div>
-      <div class="card-value" style="color: var(--accent); font-size: 1.3rem;">{w_tps}</div>
+{tps_card}
     </div>
     <div class="card">
       <div class="card-label">⏱ Fastest Latency</div>
-      <div class="card-value" style="color: var(--purple); font-size: 1.3rem;">{w_lat}</div>
+{lat_card}
     </div>
   </div>
 
@@ -414,15 +511,23 @@ def export_to_html(data: Dict[str, Any], filepath: str) -> str:
     <tbody>
 """
         for m in data.get("models", []):
-            st_badge = '<span class="badge badge-green">OK</span>' if m.get("success") else '<span class="badge badge-red">FAILED</span>'
+            st_badge = (
+                '<span class="badge badge-green">OK</span>'
+                if m.get("success")
+                else '<span class="badge badge-red">FAILED</span>'
+            )
+            tps_cell = (
+                f"        <td><strong>{m.get('tps', 0):.1f}</strong>"
+                ' <span class="card-unit">T/s</span></td>'
+            )
             html_content += f"""
       <tr>
-        <td><strong>{m.get('model')}</strong></td>
+        <td><strong>{m.get("model")}</strong></td>
         <td>{st_badge}</td>
-        <td>{m.get('ttft_ms', 0):.1f} ms</td>
-        <td>{m.get('total_latency_ms', 0):.1f} ms</td>
-        <td><strong>{m.get('tps', 0):.1f}</strong> <span class="card-unit">T/s</span></td>
-        <td>{m.get('tokens', 0)}</td>
+        <td>{m.get("ttft_ms", 0):.1f} ms</td>
+        <td>{m.get("total_latency_ms", 0):.1f} ms</td>
+{tps_cell}
+        <td>{m.get("tokens", 0)}</td>
       </tr>
 """
         html_content += """
@@ -431,23 +536,43 @@ def export_to_html(data: Dict[str, Any], filepath: str) -> str:
 """
 
     elif is_stress:
+        success_card = (
+            '      <div class="card-value" style="color: var(--green);">'
+            f"{data.get('success_rate_pct')}"
+            '<span class="card-unit">%</span></div>'
+        )
+        throughput_card = (
+            '      <div class="card-value" style="color: var(--accent);">'
+            f"{data.get('aggregate_tps')}"
+            '<span class="card-unit"> T/s</span></div>'
+        )
+        concurrency_card = (
+            '      <div class="card-value">'
+            f"{data.get('concurrency')}"
+            ' <span class="card-unit">workers</span></div>'
+        )
+        p95_card = (
+            '      <div class="card-value" style="color: var(--yellow);">'
+            f"{data.get('latency_stats', {}).get('p95', 0)}"
+            '<span class="card-unit"> ms</span></div>'
+        )
         html_content += f"""
   <div class="grid">
     <div class="card">
       <div class="card-label">Success Rate</div>
-      <div class="card-value" style="color: var(--green);">{data.get('success_rate_pct')}<span class="card-unit">%</span></div>
+{success_card}
     </div>
     <div class="card">
       <div class="card-label">Aggregate Throughput</div>
-      <div class="card-value" style="color: var(--accent);">{data.get('aggregate_tps')}<span class="card-unit"> T/s</span></div>
+{throughput_card}
     </div>
     <div class="card">
       <div class="card-label">Concurrency Level</div>
-      <div class="card-value">{data.get('concurrency')} <span class="card-unit">workers</span></div>
+{concurrency_card}
     </div>
     <div class="card">
       <div class="card-label">P95 Latency</div>
-      <div class="card-value" style="color: var(--yellow);">{data.get('latency_stats', {}).get('p95', 0)}<span class="card-unit"> ms</span></div>
+{p95_card}
     </div>
   </div>
 """
@@ -457,22 +582,38 @@ def export_to_html(data: Dict[str, Any], filepath: str) -> str:
         ttft = data.get("ttft_ms", 0.0)
         tps = data.get("tps", 0.0)
         tot_lat = data.get("total_latency_ms", 0.0)
-        tokens = data.get("tokens", 0)
+        data.get("tokens", 0)
+
+        model_card = (
+            '      <div class="card-value"'
+            ' style="font-size: 1.3rem; color: var(--accent);">'
+            f"{model}</div>"
+        )
+        ttft_latency_card = (
+            '      <div class="card-value" style="color: var(--green);">'
+            f"{ttft:.1f}"
+            '<span class="card-unit"> ms</span></div>'
+        )
+        speed_card = (
+            '      <div class="card-value" style="color: var(--accent);">'
+            f"{tps:.1f}"
+            '<span class="card-unit"> T/s</span></div>'
+        )
 
         html_content += f"""
   <div class="grid">
     <div class="card">
       <div class="card-label">Target Model</div>
-      <div class="card-value" style="font-size: 1.3rem; color: var(--accent);">{model}</div>
-      <div class="card-unit">HTTP {data.get('status_code', 200)}</div>
+{model_card}
+      <div class="card-unit">HTTP {data.get("status_code", 200)}</div>
     </div>
     <div class="card">
       <div class="card-label">TTFT Latency</div>
-      <div class="card-value" style="color: var(--green);">{ttft:.1f}<span class="card-unit"> ms</span></div>
+{ttft_latency_card}
     </div>
     <div class="card">
       <div class="card-label">Throughput Speed</div>
-      <div class="card-value" style="color: var(--accent);">{tps:.1f}<span class="card-unit"> T/s</span></div>
+{speed_card}
     </div>
     <div class="card">
       <div class="card-label">Total Latency</div>
@@ -484,13 +625,17 @@ def export_to_html(data: Dict[str, Any], filepath: str) -> str:
             html_content += f"""
   <div class="response-box">
     <div class="response-title">Model Output Content</div>
-    <div class="response-content">{data.get('response_text')}</div>
+    <div class="response-content">{data.get("response_text")}</div>
   </div>
 """
 
-    html_content += """
+    footer_line = (
+        "    Benchmarked with <strong>API TEST CLI</strong> &bull;"
+        " Open-Source AI Endpoint Telemetry"
+    )
+    html_content += f"""
   <footer>
-    Benchmarked with <strong>API TEST CLI</strong> &bull; Open-Source AI Endpoint Telemetry
+{footer_line}
   </footer>
 </div>
 </body>
@@ -503,9 +648,10 @@ def export_to_html(data: Dict[str, Any], filepath: str) -> str:
     return os.path.abspath(filepath)
 
 
-def auto_export(data: Dict[str, Any], filepath: str) -> str:
+def auto_export(data: dict[str, Any], filepath: str) -> str:
     """
-    Automatically routes export to JSON, CSV, Markdown, or HTML based on the file extension.
+    Automatically routes export to JSON, CSV, Markdown, or HTML
+    based on the file extension.
     """
     lower = filepath.lower()
     if lower.endswith(".json"):

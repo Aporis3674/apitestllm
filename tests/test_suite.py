@@ -3,50 +3,46 @@ Automated Verification Suite for API TEST CLI
 Comprehensive offline unit and integration tests.
 """
 
-import os
-import sys
 import json
+import os
 import tempfile
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-# Ensure UTF-8 output across Windows consoles
-if sys.stdout and hasattr(sys.stdout, "reconfigure"):
-    try:
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
-        pass
-
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-from config import ConfigManager, DEFAULT_PRESETS, sanitize_base_url, detect_provider
-from client import APIDiagnosticsClient, calculate_statistics
-from exporter import (
-    export_to_json,
-    export_to_csv,
-    export_to_markdown,
-    export_to_html,
+from apitestllm._compat import ensure_utf8_stdio
+from apitestllm.cli import execute_noninteractive, parse_arguments
+from apitestllm.client import APIDiagnosticsClient, calculate_statistics
+from apitestllm.config import DEFAULT_PRESETS, ConfigManager, detect_provider
+from apitestllm.exporter import (
     auto_export,
+    export_to_csv,
+    export_to_html,
+    export_to_json,
+    export_to_markdown,
 )
-from ui import (
+from apitestllm.ui import (
     get_rgb_banner,
-    render_model_discovery_page,
     render_benchmark_report,
-    render_multi_run_benchmark_report,
-    render_model_comparison_matrix,
-    render_stress_test_report,
     render_history_table,
+    render_model_comparison_matrix,
+    render_model_discovery_page,
+    render_multi_run_benchmark_report,
     render_presets_table,
     render_slash_commands,
+    render_stress_test_report,
 )
-from cli import parse_arguments, execute_noninteractive
+
+ensure_utf8_stdio()
 
 
 class TestConfigManager(unittest.TestCase):
     def test_config_operations(self):
         cfg = ConfigManager()
-        cfg.save_profile("TempUnitTest", "https://api.openai.com/v1", "sk-test123456", "gpt-4o-mini")
+        cfg.save_profile(
+            "TempUnitTest", "https://api.openai.com/v1", "sk-test123456", "gpt-4o-mini"
+        )
         active = cfg.get_active_profile()
+        assert active is not None
         self.assertEqual(active["name"], "TempUnitTest")
         self.assertEqual(active["base_url"], "https://api.openai.com/v1")
         self.assertEqual(active["api_key"], "sk-test123456")
@@ -56,13 +52,18 @@ class TestConfigManager(unittest.TestCase):
 
     def test_detect_provider(self):
         self.assertEqual(detect_provider("https://api.openai.com/v1"), "OpenAI")
-        self.assertEqual(detect_provider("https://api.groq.com/openai/v1"), "Groq Cloud")
+        self.assertEqual(
+            detect_provider("https://api.groq.com/openai/v1"), "Groq Cloud"
+        )
         self.assertEqual(detect_provider("https://openrouter.ai/api/v1"), "OpenRouter")
         self.assertEqual(detect_provider("https://api.cerebras.ai/v1"), "Cerebras")
         self.assertEqual(detect_provider("https://api.deepseek.com/v1"), "DeepSeek")
         self.assertEqual(detect_provider("http://localhost:11434/v1"), "Ollama (Local)")
         self.assertEqual(detect_provider("http://localhost:8000/v1"), "vLLM (Local)")
-        self.assertEqual(detect_provider("https://my-custom-endpoint.org/v1"), "Custom / OpenAI-Compatible")
+        self.assertEqual(
+            detect_provider("https://my-custom-endpoint.org/v1"),
+            "Custom / OpenAI-Compatible",
+        )
 
     def test_history_operations(self):
         cfg = ConfigManager()
@@ -86,16 +87,25 @@ class TestConfigManager(unittest.TestCase):
 
 class TestClientDiagnostics(unittest.TestCase):
     def test_error_formatting_offline(self):
-        client = APIDiagnosticsClient("http://127.0.0.1:59999/v1", api_key="", timeout=1.0)
+        client = APIDiagnosticsClient(
+            "http://127.0.0.1:59999/v1", api_key="", timeout=1.0
+        )
         res = client.fetch_models()
         self.assertFalse(res["success"])
-        self.assertTrue("Connection Refused" in res["error"] or "Connect Timeout" in res["error"])
+        self.assertTrue(
+            "Connection Refused" in res["error"] or "Connect Timeout" in res["error"]
+        )
 
     def test_single_model_health_offline(self):
-        client = APIDiagnosticsClient("http://127.0.0.1:59999/v1", api_key="", timeout=1.0)
+        client = APIDiagnosticsClient(
+            "http://127.0.0.1:59999/v1", api_key="", timeout=1.0
+        )
         health = client.test_single_model_health("gpt-4o")
         self.assertEqual(health["status"], "FAILED")
-        self.assertTrue("Connection Refused" in health["error_reason"] or "Connect Timeout" in health["error_reason"])
+        self.assertTrue(
+            "Connection Refused" in health["error_reason"]
+            or "Connect Timeout" in health["error_reason"]
+        )
 
     def test_calculate_statistics(self):
         # Empty array
@@ -114,9 +124,36 @@ class TestClientDiagnostics(unittest.TestCase):
     @patch.object(APIDiagnosticsClient, "run_stream_benchmark")
     def test_multi_run_benchmark(self, mock_stream):
         mock_stream.side_effect = [
-            {"success": True, "model": "test-model", "ttft_ms": 200.0, "tps": 80.0, "total_latency_ms": 500.0, "generation_latency_ms": 300.0, "tokens": 40, "response_text": "Ans 1"},
-            {"success": True, "model": "test-model", "ttft_ms": 150.0, "tps": 85.0, "total_latency_ms": 450.0, "generation_latency_ms": 300.0, "tokens": 40, "response_text": "Ans 2"},
-            {"success": True, "model": "test-model", "ttft_ms": 160.0, "tps": 82.0, "total_latency_ms": 460.0, "generation_latency_ms": 300.0, "tokens": 40, "response_text": "Ans 3"},
+            {
+                "success": True,
+                "model": "test-model",
+                "ttft_ms": 200.0,
+                "tps": 80.0,
+                "total_latency_ms": 500.0,
+                "generation_latency_ms": 300.0,
+                "tokens": 40,
+                "response_text": "Ans 1",
+            },
+            {
+                "success": True,
+                "model": "test-model",
+                "ttft_ms": 150.0,
+                "tps": 85.0,
+                "total_latency_ms": 450.0,
+                "generation_latency_ms": 300.0,
+                "tokens": 40,
+                "response_text": "Ans 2",
+            },
+            {
+                "success": True,
+                "model": "test-model",
+                "ttft_ms": 160.0,
+                "tps": 82.0,
+                "total_latency_ms": 460.0,
+                "generation_latency_ms": 300.0,
+                "tokens": 40,
+                "response_text": "Ans 3",
+            },
         ]
         client = APIDiagnosticsClient("https://api.openai.com/v1")
         multi_res = client.run_multi_run_benchmark("test-model", runs=3)
@@ -129,8 +166,22 @@ class TestClientDiagnostics(unittest.TestCase):
     @patch.object(APIDiagnosticsClient, "run_stream_benchmark")
     def test_model_comparison(self, mock_stream):
         mock_stream.side_effect = [
-            {"success": True, "model": "model-fast-ttft", "ttft_ms": 90.0, "tps": 50.0, "total_latency_ms": 400.0, "tokens": 30},
-            {"success": True, "model": "model-high-tps", "ttft_ms": 250.0, "tps": 120.0, "total_latency_ms": 350.0, "tokens": 30},
+            {
+                "success": True,
+                "model": "model-fast-ttft",
+                "ttft_ms": 90.0,
+                "tps": 50.0,
+                "total_latency_ms": 400.0,
+                "tokens": 30,
+            },
+            {
+                "success": True,
+                "model": "model-high-tps",
+                "ttft_ms": 250.0,
+                "tps": 120.0,
+                "total_latency_ms": 350.0,
+                "tokens": 30,
+            },
         ]
         client = APIDiagnosticsClient("https://api.openai.com/v1")
         cmp_res = client.run_model_comparison(["model-fast-ttft", "model-high-tps"])
@@ -143,12 +194,32 @@ class TestClientDiagnostics(unittest.TestCase):
     @patch.object(APIDiagnosticsClient, "test_single_chat_request")
     def test_stress_test(self, mock_request):
         mock_request.side_effect = [
-            {"success": True, "latency_ms": 100.0, "tokens": 10, "status_code": 200, "error": None},
-            {"success": True, "latency_ms": 120.0, "tokens": 10, "status_code": 200, "error": None},
-            {"success": False, "latency_ms": 50.0, "tokens": 0, "status_code": 429, "error": "HTTP 429: Rate limit"},
+            {
+                "success": True,
+                "latency_ms": 100.0,
+                "tokens": 10,
+                "status_code": 200,
+                "error": None,
+            },
+            {
+                "success": True,
+                "latency_ms": 120.0,
+                "tokens": 10,
+                "status_code": 200,
+                "error": None,
+            },
+            {
+                "success": False,
+                "latency_ms": 50.0,
+                "tokens": 0,
+                "status_code": 429,
+                "error": "HTTP 429: Rate limit",
+            },
         ]
         client = APIDiagnosticsClient("https://api.openai.com/v1")
-        stress_res = client.run_stress_test("model-test", concurrency=2, total_requests=3)
+        stress_res = client.run_stress_test(
+            "model-test", concurrency=2, total_requests=3
+        )
         self.assertEqual(stress_res["total_requests"], 3)
         self.assertEqual(stress_res["successful_requests"], 2)
         self.assertEqual(stress_res["failed_requests"], 1)
@@ -176,7 +247,7 @@ class TestExporters(unittest.TestCase):
         try:
             out = export_to_json(self.sample_benchmark, temp_path)
             self.assertTrue(os.path.exists(out))
-            with open(out, "r", encoding="utf-8") as f:
+            with open(out, encoding="utf-8") as f:
                 data = json.load(f)
             self.assertEqual(data["generator"], "API TEST CLI")
             self.assertEqual(data["report"]["model"], "gpt-4o")
@@ -191,7 +262,7 @@ class TestExporters(unittest.TestCase):
         try:
             out = export_to_csv(self.sample_benchmark, temp_path)
             self.assertTrue(os.path.exists(out))
-            with open(out, "r", encoding="utf-8") as f:
+            with open(out, encoding="utf-8") as f:
                 content = f.read()
             self.assertIn("gpt-4o", content)
             self.assertIn("TTFT", content)
@@ -206,7 +277,7 @@ class TestExporters(unittest.TestCase):
         try:
             out = export_to_markdown(self.sample_benchmark, temp_path)
             self.assertTrue(os.path.exists(out))
-            with open(out, "r", encoding="utf-8") as f:
+            with open(out, encoding="utf-8") as f:
                 content = f.read()
             self.assertIn("# ⚡ API TEST CLI", content)
             self.assertIn("`gpt-4o`", content)
@@ -221,7 +292,7 @@ class TestExporters(unittest.TestCase):
         try:
             out = export_to_html(self.sample_benchmark, temp_path)
             self.assertTrue(os.path.exists(out))
-            with open(out, "r", encoding="utf-8") as f:
+            with open(out, encoding="utf-8") as f:
                 content = f.read()
             self.assertIn("<!DOCTYPE html>", content)
             self.assertIn("API TEST CLI Telemetry Report", content)
@@ -251,8 +322,18 @@ class TestUIRendering(unittest.TestCase):
 
     def test_model_discovery_page_render(self):
         mock_results = [
-            {"model": "gpt-4o", "status": "OK", "latency_ms": 120.5, "error_reason": None},
-            {"model": "llama-3-70b", "status": "FAILED", "latency_ms": None, "error_reason": "HTTP 401: Unauthorized (Invalid Key)"},
+            {
+                "model": "gpt-4o",
+                "status": "OK",
+                "latency_ms": 120.5,
+                "error_reason": None,
+            },
+            {
+                "model": "llama-3-70b",
+                "status": "FAILED",
+                "latency_ms": None,
+                "error_reason": "HTTP 401: Unauthorized (Invalid Key)",
+            },
         ]
         render_model_discovery_page("https://api.openai.com/v1", mock_results, 85.0)
 
@@ -286,18 +367,60 @@ class TestUIRendering(unittest.TestCase):
             "generation_latency_ms": 420.0,
             "tokens": 40,
             "stats": {
-                "ttft": {"min": 170.0, "max": 190.0, "mean": 180.0, "median": 180.0, "p95": 189.0, "stdev": 10.0},
-                "tps": {"min": 75.0, "max": 85.0, "mean": 80.0, "median": 80.0, "p95": 84.5, "stdev": 5.0},
-                "total_latency": {"min": 580.0, "max": 620.0, "mean": 600.0, "median": 600.0, "p95": 618.0, "stdev": 20.0},
+                "ttft": {
+                    "min": 170.0,
+                    "max": 190.0,
+                    "mean": 180.0,
+                    "median": 180.0,
+                    "p95": 189.0,
+                    "stdev": 10.0,
+                },
+                "tps": {
+                    "min": 75.0,
+                    "max": 85.0,
+                    "mean": 80.0,
+                    "median": 80.0,
+                    "p95": 84.5,
+                    "stdev": 5.0,
+                },
+                "total_latency": {
+                    "min": 580.0,
+                    "max": 620.0,
+                    "mean": 600.0,
+                    "median": 600.0,
+                    "p95": 618.0,
+                    "stdev": 20.0,
+                },
                 "stability_score": 93.8,
                 "cold_start_ttft_ms": 190.0,
                 "warm_ttft_ms": 175.0,
             },
             "runs": [
-                {"run_number": 1, "success": True, "ttft_ms": 190.0, "tps": 75.0, "total_latency_ms": 620.0, "tokens": 40},
-                {"run_number": 2, "success": True, "ttft_ms": 170.0, "tps": 85.0, "total_latency_ms": 580.0, "tokens": 40},
-                {"run_number": 3, "success": True, "ttft_ms": 180.0, "tps": 80.0, "total_latency_ms": 600.0, "tokens": 40},
-            ]
+                {
+                    "run_number": 1,
+                    "success": True,
+                    "ttft_ms": 190.0,
+                    "tps": 75.0,
+                    "total_latency_ms": 620.0,
+                    "tokens": 40,
+                },
+                {
+                    "run_number": 2,
+                    "success": True,
+                    "ttft_ms": 170.0,
+                    "tps": 85.0,
+                    "total_latency_ms": 580.0,
+                    "tokens": 40,
+                },
+                {
+                    "run_number": 3,
+                    "success": True,
+                    "ttft_ms": 180.0,
+                    "tps": 80.0,
+                    "total_latency_ms": 600.0,
+                    "tokens": 40,
+                },
+            ],
         }
         render_multi_run_benchmark_report(mock_multi)
 
@@ -305,14 +428,28 @@ class TestUIRendering(unittest.TestCase):
         mock_cmp = {
             "prompt": "Test comparison",
             "models": [
-                {"model": "gpt-4o", "success": True, "ttft_ms": 150.0, "tps": 60.0, "total_latency_ms": 500.0, "tokens": 30},
-                {"model": "llama-3.3-70b", "success": True, "ttft_ms": 90.0, "tps": 130.0, "total_latency_ms": 320.0, "tokens": 30},
+                {
+                    "model": "gpt-4o",
+                    "success": True,
+                    "ttft_ms": 150.0,
+                    "tps": 60.0,
+                    "total_latency_ms": 500.0,
+                    "tokens": 30,
+                },
+                {
+                    "model": "llama-3.3-70b",
+                    "success": True,
+                    "ttft_ms": 90.0,
+                    "tps": 130.0,
+                    "total_latency_ms": 320.0,
+                    "tokens": 30,
+                },
             ],
             "winners": {
                 "fastest_ttft": {"model": "llama-3.3-70b", "value": 90.0},
                 "highest_tps": {"model": "llama-3.3-70b", "value": 130.0},
                 "lowest_latency": {"model": "llama-3.3-70b", "value": 320.0},
-            }
+            },
         }
         render_model_comparison_matrix(mock_cmp)
 
@@ -327,14 +464,27 @@ class TestUIRendering(unittest.TestCase):
             "duration_sec": 2.5,
             "aggregate_tps": 150.0,
             "total_tokens": 375,
-            "latency_stats": {"min": 150.0, "max": 450.0, "mean": 220.0, "median": 200.0, "p95": 410.0},
+            "latency_stats": {
+                "min": 150.0,
+                "max": 450.0,
+                "mean": 220.0,
+                "median": 200.0,
+                "p95": 410.0,
+            },
             "error_breakdown": {"HTTP 429: Rate Limit": 1},
         }
         render_stress_test_report(mock_stress)
 
     def test_history_and_presets_render(self):
         history = [
-            {"timestamp": "2026-09-17 12:00:00", "model": "gpt-4o", "ttft_ms": 150.0, "tps": 80.0, "total_latency_ms": 500.0, "success": True}
+            {
+                "timestamp": "2026-09-17 12:00:00",
+                "model": "gpt-4o",
+                "ttft_ms": 150.0,
+                "tps": 80.0,
+                "total_latency_ms": 500.0,
+                "success": True,
+            }
         ]
         render_history_table(history)
         render_presets_table(DEFAULT_PRESETS)
@@ -343,23 +493,39 @@ class TestUIRendering(unittest.TestCase):
 
 class TestCLIArgs(unittest.TestCase):
     def test_parse_arguments(self):
-        args = parse_arguments(["--scan", "--base-url", "https://api.openai.com/v1", "--json"])
+        args = parse_arguments(
+            ["--scan", "--base-url", "https://api.openai.com/v1", "--json"]
+        )
         self.assertTrue(args.scan)
         self.assertEqual(args.base_url, "https://api.openai.com/v1")
         self.assertTrue(args.json)
 
-        args2 = parse_arguments(["--benchmark", "--model", "gpt-4o-mini", "--runs", "3", "--max-ttft", "300.0"])
+        args2 = parse_arguments(
+            [
+                "--benchmark",
+                "--model",
+                "gpt-4o-mini",
+                "--runs",
+                "3",
+                "--max-ttft",
+                "300.0",
+            ]
+        )
         self.assertTrue(args2.benchmark)
         self.assertEqual(args2.model, "gpt-4o-mini")
         self.assertEqual(args2.runs, 3)
         self.assertEqual(args2.max_ttft, 300.0)
 
-        args3 = parse_arguments(["--compare", "--models", "gpt-4o,llama-3.3-70b", "--output", "report.html"])
+        args3 = parse_arguments(
+            ["--compare", "--models", "gpt-4o,llama-3.3-70b", "--output", "report.html"]
+        )
         self.assertTrue(args3.compare)
         self.assertEqual(args3.models, "gpt-4o,llama-3.3-70b")
         self.assertEqual(args3.output, "report.html")
 
-        args4 = parse_arguments(["--stress", "--model", "gpt-4o", "--concurrency", "10", "--requests", "50"])
+        args4 = parse_arguments(
+            ["--stress", "--model", "gpt-4o", "--concurrency", "10", "--requests", "50"]
+        )
         self.assertTrue(args4.stress)
         self.assertEqual(args4.concurrency, 10)
         self.assertEqual(args4.requests, 50)
@@ -376,7 +542,18 @@ class TestCLIArgs(unittest.TestCase):
             "tokens": 45,
             "response_text": "Success",
         }
-        args = parse_arguments(["--benchmark", "--base-url", "https://api.openai.com/v1", "--model", "gpt-4o", "--json", "--max-ttft", "200.0"])
+        args = parse_arguments(
+            [
+                "--benchmark",
+                "--base-url",
+                "https://api.openai.com/v1",
+                "--model",
+                "gpt-4o",
+                "--json",
+                "--max-ttft",
+                "200.0",
+            ]
+        )
         exit_code = execute_noninteractive(args)
         self.assertEqual(exit_code, 0)
 
@@ -392,7 +569,18 @@ class TestCLIArgs(unittest.TestCase):
             "tokens": 45,
             "response_text": "Slow response",
         }
-        args = parse_arguments(["--benchmark", "--base-url", "https://api.openai.com/v1", "--model", "gpt-4o", "--max-ttft", "200.0", "--json"])
+        args = parse_arguments(
+            [
+                "--benchmark",
+                "--base-url",
+                "https://api.openai.com/v1",
+                "--model",
+                "gpt-4o",
+                "--max-ttft",
+                "200.0",
+                "--json",
+            ]
+        )
         exit_code = execute_noninteractive(args)
         self.assertEqual(exit_code, 1)
 
