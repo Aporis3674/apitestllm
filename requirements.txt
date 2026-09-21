@@ -1,2 +1,4 @@
+# Generated from [project] dependencies in pyproject.toml.
+# Regenerate with: ./scripts/export-requirements.sh
 rich>=13.0.0
 httpx>=0.24.0

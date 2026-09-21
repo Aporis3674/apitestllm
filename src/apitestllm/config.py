@@ -3,9 +3,8 @@ API TEST CLI - Configuration & Profile Persistence Manager
 """
 
 import json
-import os
 from pathlib import Path
-from typing import Dict, Any, Optional, List
+from typing import Any
 
 CONFIG_DIR = Path.home() / ".api_test_cli"
 CONFIG_FILE = CONFIG_DIR / "config.json"
@@ -76,7 +75,7 @@ DEFAULT_PRESETS = [
         "base_url": "https://api.x.ai/v1",
         "api_key": "",
         "default_model": "grok-beta",
-    }
+    },
 ]
 
 
@@ -103,9 +102,9 @@ def sanitize_base_url(url: str) -> str:
     for s in suffixes:
         if url.endswith(s):
             if s.startswith("/v1/"):
-                url = url[:-len(s)] + "/v1"
+                url = url[: -len(s)] + "/v1"
             else:
-                url = url[:-len(s)]
+                url = url[: -len(s)]
             break
 
     return url.rstrip("/")
@@ -157,7 +156,7 @@ class ConfigManager:
         if not self.config_dir.exists():
             self.config_dir.mkdir(parents=True, exist_ok=True)
 
-    def _load(self) -> Dict[str, Any]:
+    def _load(self) -> dict[str, Any]:
         if not self.config_file.exists():
             default_config = {
                 "active_profile": None,
@@ -168,7 +167,7 @@ class ConfigManager:
             return default_config
 
         try:
-            with open(self.config_file, "r", encoding="utf-8") as f:
+            with open(self.config_file, encoding="utf-8") as f:
                 return json.load(f)
         except Exception:
             return {
@@ -177,7 +176,7 @@ class ConfigManager:
                 "history": [],
             }
 
-    def _save_raw(self, data: Dict[str, Any]):
+    def _save_raw(self, data: dict[str, Any]):
         try:
             with open(self.config_file, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
@@ -187,7 +186,7 @@ class ConfigManager:
     def save(self):
         self._save_raw(self.data)
 
-    def get_active_profile(self) -> Optional[Dict[str, Any]]:
+    def get_active_profile(self) -> dict[str, Any] | None:
         active_name = self.data.get("active_profile")
         profiles = self.data.get("profiles", {})
         if active_name and active_name in profiles:
@@ -205,7 +204,14 @@ class ConfigManager:
             return True
         return False
 
-    def save_profile(self, name: str, base_url: str, api_key: str = "", default_model: str = "", timeout: float = 30.0):
+    def save_profile(
+        self,
+        name: str,
+        base_url: str,
+        api_key: str = "",
+        default_model: str = "",
+        timeout: float = 30.0,
+    ):
         clean_url = sanitize_base_url(base_url)
 
         if "profiles" not in self.data or not isinstance(self.data["profiles"], dict):
@@ -226,12 +232,14 @@ class ConfigManager:
         if name in profiles:
             del profiles[name]
             if self.data.get("active_profile") == name:
-                self.data["active_profile"] = next(iter(profiles.keys())) if profiles else None
+                self.data["active_profile"] = (
+                    next(iter(profiles.keys())) if profiles else None
+                )
             self.save()
             return True
         return False
 
-    def list_profiles(self) -> List[Dict[str, Any]]:
+    def list_profiles(self) -> list[dict[str, Any]]:
         profiles = self.data.get("profiles", {})
         if isinstance(profiles, dict):
             return list(profiles.values())
@@ -241,7 +249,7 @@ class ConfigManager:
         profile = self.get_active_profile()
         return bool(profile and profile.get("base_url"))
 
-    def add_history(self, record: Dict[str, Any], max_items: int = 50):
+    def add_history(self, record: dict[str, Any], max_items: int = 50):
         """Records a benchmark or test run into persistent history."""
         if "history" not in self.data or not isinstance(self.data["history"], list):
             self.data["history"] = []
@@ -251,7 +259,7 @@ class ConfigManager:
             self.data["history"] = self.data["history"][:max_items]
         self.save()
 
-    def get_history(self, limit: int = 20) -> List[Dict[str, Any]]:
+    def get_history(self, limit: int = 20) -> list[dict[str, Any]]:
         """Retrieves recent benchmark telemetry runs."""
         hist = self.data.get("history", [])
         if isinstance(hist, list):

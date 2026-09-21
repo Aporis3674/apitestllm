@@ -2,17 +2,16 @@
 API TEST CLI - Dynamic Live Slash Command Preview & Animated Prompt Engine
 """
 
-import os
 import sys
-from typing import Optional, List, Tuple
+
+from rich.box import ROUNDED
 from rich.console import Console, Group
 from rich.live import Live
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
-from rich.box import ROUNDED
 
-from picker import read_key
+from .picker import read_key
 
 console = Console()
 
@@ -35,7 +34,9 @@ SLASH_COMMANDS = [
 ]
 
 
-def make_prompt_renderable(prompt_label: str, buffer: str, highlight_idx: int = 0) -> Group | Text:
+def make_prompt_renderable(
+    prompt_label: str, buffer: str, highlight_idx: int = 0
+) -> Group | Text:
     """
     Constructs the dynamic UI element:
     1. Prompt line with active typing text and cursor.
@@ -51,7 +52,8 @@ def make_prompt_renderable(prompt_label: str, buffer: str, highlight_idx: int = 
     if buffer.startswith("/"):
         q = buffer.lower().strip()
         matched = [
-            (cmd, desc) for cmd, desc in SLASH_COMMANDS
+            (cmd, desc)
+            for cmd, desc in SLASH_COMMANDS
             if (q == "/" or cmd.startswith(q) or (len(q) > 1 and q[1:] in cmd[1:]))
         ]
         if not matched:
@@ -66,9 +68,17 @@ def make_prompt_renderable(prompt_label: str, buffer: str, highlight_idx: int = 
 
         for idx, (cmd, desc) in enumerate(matched):
             if idx == h_idx:
-                table.add_row(f"[bold bright_cyan on #222222]❯ {cmd}[/bold bright_cyan on #222222]", f"[bright_white on #222222]{desc}[/bright_white on #222222]")
+                table.add_row(
+                    (
+                        f"[bold bright_cyan on #222222]❯ {cmd}"
+                        "[/bold bright_cyan on #222222]"
+                    ),
+                    f"[bright_white on #222222]{desc}[/bright_white on #222222]",
+                )
             else:
-                table.add_row(f"[bold grey93]  {cmd}[/bold grey93]", f"[grey70]{desc}[/grey70]")
+                table.add_row(
+                    f"[bold grey93]  {cmd}[/bold grey93]", f"[grey70]{desc}[/grey70]"
+                )
 
         panel = Panel(
             table,
@@ -83,7 +93,9 @@ def make_prompt_renderable(prompt_label: str, buffer: str, highlight_idx: int = 
     return prompt_text
 
 
-def prompt_live_input(prompt_label: str = "Select Option [1: Start | 2: Exit] or type '/'") -> str:
+def prompt_live_input(
+    prompt_label: str = "Select Option [1: Start | 2: Exit] or type '/'",
+) -> str:
     """
     Live-animated interactive prompt:
     - Automatically displays the sleek grey preview box the moment '/' is typed.
@@ -93,56 +105,82 @@ def prompt_live_input(prompt_label: str = "Select Option [1: Start | 2: Exit] or
     """
     if not sys.stdin.isatty():
         from rich.prompt import Prompt
-        return Prompt.ask(f"[bold grey85]❯ {prompt_label}[/bold grey85]", default="1").strip()
+
+        return Prompt.ask(
+            f"[bold grey85]❯ {prompt_label}[/bold grey85]", default="1"
+        ).strip()
 
     buffer = ""
     highlight_idx = 0
 
-    with Live(make_prompt_renderable(prompt_label, buffer, highlight_idx), console=console, refresh_per_second=30, transient=True) as live:
+    with Live(
+        make_prompt_renderable(prompt_label, buffer, highlight_idx),
+        console=console,
+        refresh_per_second=30,
+        transient=True,
+    ) as live:
         while True:
             k = read_key()
             if not k:
                 continue
 
-            if k == 'enter':
+            if k == "enter":
                 if buffer.startswith("/"):
                     q = buffer.lower().strip()
                     matched = [
-                        cmd for cmd, _ in SLASH_COMMANDS
-                        if (q == "/" or cmd.startswith(q) or (len(q) > 1 and q[1:] in cmd[1:]))
+                        cmd
+                        for cmd, _ in SLASH_COMMANDS
+                        if (
+                            q == "/"
+                            or cmd.startswith(q)
+                            or (len(q) > 1 and q[1:] in cmd[1:])
+                        )
                     ]
                     if matched and (buffer == "/" or buffer == q):
                         buffer = matched[highlight_idx % len(matched)]
                 break
 
-            elif k == 'up':
+            elif k == "up":
                 if buffer.startswith("/"):
                     highlight_idx = max(0, highlight_idx - 1)
-                    live.update(make_prompt_renderable(prompt_label, buffer, highlight_idx))
+                    live.update(
+                        make_prompt_renderable(prompt_label, buffer, highlight_idx)
+                    )
 
-            elif k == 'down':
+            elif k == "down":
                 if buffer.startswith("/"):
                     highlight_idx += 1
-                    live.update(make_prompt_renderable(prompt_label, buffer, highlight_idx))
+                    live.update(
+                        make_prompt_renderable(prompt_label, buffer, highlight_idx)
+                    )
 
-            elif k == 'tab':
+            elif k == "tab":
                 if buffer.startswith("/"):
                     q = buffer.lower().strip()
                     matched = [
-                        cmd for cmd, _ in SLASH_COMMANDS
-                        if (q == "/" or cmd.startswith(q) or (len(q) > 1 and q[1:] in cmd[1:]))
+                        cmd
+                        for cmd, _ in SLASH_COMMANDS
+                        if (
+                            q == "/"
+                            or cmd.startswith(q)
+                            or (len(q) > 1 and q[1:] in cmd[1:])
+                        )
                     ]
                     if matched:
                         buffer = matched[highlight_idx % len(matched)]
-                        live.update(make_prompt_renderable(prompt_label, buffer, highlight_idx))
+                        live.update(
+                            make_prompt_renderable(prompt_label, buffer, highlight_idx)
+                        )
 
-            elif k == 'backspace':
+            elif k == "backspace":
                 if buffer:
                     buffer = buffer[:-1]
                     highlight_idx = 0
-                    live.update(make_prompt_renderable(prompt_label, buffer, highlight_idx))
+                    live.update(
+                        make_prompt_renderable(prompt_label, buffer, highlight_idx)
+                    )
 
-            elif k == 'escape':
+            elif k == "escape":
                 buffer = "/back"
                 break
 
@@ -151,5 +189,8 @@ def prompt_live_input(prompt_label: str = "Select Option [1: Start | 2: Exit] or
                 highlight_idx = 0
                 live.update(make_prompt_renderable(prompt_label, buffer, highlight_idx))
 
-    console.print(f"[bold grey85]❯ {prompt_label}: [/bold grey85][bold white]{buffer}[/bold white]")
+    console.print(
+        f"[bold grey85]❯ {prompt_label}: [/bold grey85]"
+        f"[bold white]{buffer}[/bold white]"
+    )
     return buffer.strip() if buffer.strip() else "1"

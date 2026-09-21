@@ -5,7 +5,7 @@
 ### *Next-Gen AI API Benchmark, Multi-Model Arena, TTFT Telemetry & CI/CD Diagnostic Engine*
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Python-3.9+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.9+"/>
+  <img src="https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.11+"/>
   <img src="https://img.shields.io/badge/TUI_Engine-Rich-10B981?style=for-the-badge&logo=gnubash&logoColor=white" alt="Rich TUI"/>
   <img src="https://img.shields.io/badge/HTTP_Engine-HTTPX-1E40AF?style=for-the-badge&logo=fastapi&logoColor=white" alt="HTTPX"/>
   <img src="https://img.shields.io/badge/Tests-24%20Passing%20(100%25)-brightgreen?style=for-the-badge&logo=pytest&logoColor=white" alt="Tests 24 Passing"/>
@@ -81,7 +81,7 @@ Most LLM benchmarks only measure aggregate completion times or offline synthetic
 ## 💎 Key Features
 
 ### 🥊 1. Model Arena (Head-to-Head Multi-Model Comparison)
-- Benchmark multiple models concurrently (`/compare` or `--compare gpt-4o,llama-3.3-70b`) with identical prompts.
+- Benchmark multiple models concurrently (`/compare` or `--compare --models "gpt-4o,llama-3.3-70b"`) with identical prompts.
 - Automatically calculates and awards **Leaderboard Winner Badges**:
   - 🏆 **Fastest TTFT**: First token arrival champion.
   - 🚀 **Highest Throughput**: Pure token generation speed leader (`tokens/sec`).
@@ -129,14 +129,20 @@ Clone repository and install dependencies:
 ```bash
 git clone https://github.com/Aporis3674/apitestllm.git
 cd apitestllm
-pip install -r requirements.txt
+uv sync
 ```
 
-*(Requirements: Python 3.9+, `rich>=13.0.0`, `httpx>=0.24.0`)*
+or without uv, use the exported requirements instead:
+
+```bash
+pip install -r requirements.txt
+```
 
 ### 2. Run Interactive TUI
 
 ```bash
+uv run apitestllm
+# or without uv:
 python api_test.py
 ```
 
@@ -150,14 +156,14 @@ Run tests programmatically in CI/CD pipelines without opening the interactive te
 
 ### 🔍 1. Scan Model Health
 ```bash
-python api_test.py --scan --base-url "https://api.openai.com/v1" --api-key "sk-..."
+uv run apitestllm --scan --base-url "https://api.openai.com/v1" --api-key "sk-..."
 ```
 
 ### ⚡ 2. Speed Benchmark with Quality Assertions
 Fail your CI pipeline if model latency degrades below your SLA:
 
 ```bash
-python api_test.py \
+uv run apitestllm \
   --benchmark \
   --base-url "https://api.groq.com/openai/v1" \
   --api-key "$GROQ_API_KEY" \
@@ -171,7 +177,7 @@ python api_test.py \
 
 ### 🥊 3. Compare Two or More Models
 ```bash
-python api_test.py \
+uv run apitestllm \
   --compare \
   --models "gpt-4o,gpt-4o-mini" \
   --prompt "Explain quantum computing in two sentences" \
@@ -180,7 +186,7 @@ python api_test.py \
 
 ### 🌪 4. Concurrency Stress Test
 ```bash
-python api_test.py \
+uv run apitestllm \
   --stress \
   --model "gpt-4o-mini" \
   --concurrency 10 \
@@ -191,7 +197,7 @@ python api_test.py \
 
 ### 📄 5. Programmatic JSON Output for `jq`
 ```bash
-python api_test.py --benchmark --model "gpt-4o-mini" --json | jq '{model: .model, ttft_ms: .ttft_ms, tps: .tps}'
+uv run apitestllm --benchmark --model "gpt-4o-mini" --json | jq '{model: .model, ttft_ms: .ttft_ms, tps: .tps}'
 ```
 
 ---
@@ -215,20 +221,14 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-
-      - name: Install Dependencies
-        run: pip install -r requirements.txt
+      - name: Setup uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
 
       - name: Run Benchmark & Assert SLAs
         env:
           API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          python api_test.py \
+          uv run apitestllm \
             --benchmark \
             --base-url "https://api.openai.com/v1" \
             --api-key "$API_KEY" \
@@ -255,21 +255,22 @@ Type `/` anytime in the interactive prompt to trigger the live palette:
 | Command | Aliases | Description |
 |---|---|---|
 | `/quick` | `/scan`, `/fetch` | **Quick Scan**: Enter URL & key, probe parallel model health instantly |
-| `/test` | `/eval`, `/qbench` | **Quick Benchmark**: Pick model from list & run live speed test |
+| `/test` | `/eval`, `/qbench`, `/quicktest` | **Quick Benchmark**: Pick model from list & run live speed test |
 | `/compare` | `/cmp`, `/arena` | **Model Arena**: Head-to-head comparison between 2+ models |
-| `/stress` | `/load`, `/concurrency`| **Stress Test**: Concurrency rate-limit & throughput load test |
+| `/stress` | `/load`, `/concurrency` | **Stress Test**: Concurrency rate-limit & throughput load test |
 | `/export` | `/exp` | **Export**: Save results to standalone HTML, Markdown, CSV, or JSON |
 | `/history` | `/h` | **History**: View recent benchmark runs, inspect telemetry or clear |
 | `/presets` | `/pre` | **Presets**: 1-click configure Groq, Cerebras, OpenRouter, DeepSeek, etc. |
-| `/start` | `1` | Open full test suite workspace for active profile |
-| `/models` | `m` | Model discovery & parallel health status board |
-| `/bench` | `b` | Multi-run statistical benchmark with P95 latency and stability scoring |
-| `/stream` | `s` | Interactive live streaming chat & reasoning token inspection |
-| `/config` | `c` | Configure or switch endpoint URL, API key, and profile settings |
-| `/profiles` | `p` | Switch, view, or manage multiple saved profiles |
-| `/clear` | `cls` | Clear terminal screen buffer |
-| `/back` | `0`, `..` | Navigate back to previous screen |
-| `/exit` | `2`, `q` | Quit the CLI application |
+| `/start` | — (`1` on home screen) | Open full test suite workspace for active profile |
+| `/models` | `/m` | Model discovery & parallel health status board |
+| `/bench` | `/b` | Multi-run statistical benchmark with P95 latency and stability scoring |
+| `/stream` | `/s` | Interactive live streaming chat & reasoning token inspection |
+| `/config` | `/c` | Configure or switch endpoint URL, API key, and profile settings |
+| `/profiles` | `/p` | Switch, view, or manage multiple saved profiles |
+| `/clear` | `/cls` | Clear terminal screen buffer |
+| `/back` | — (`0` / `..` are menu keys) | Navigate back to previous screen |
+| `/help` | `/`, `/?` | Show slash-commands reference |
+| `/exit` | `/quit`, `/q` (`2` / `q` on home screen) | Quit the CLI application |
 
 ---
 
@@ -385,17 +386,27 @@ llama-3.3-70b,OK,85.2,310.4,145.8,52,200,
 
 ```
 api-test-cli/
-├── api_test.py       # Main CLI entrypoint & CI/CD argument dispatcher
-├── cli.py            # REPL loop, interactive menus & non-interactive execution engine
-├── palette.py        # Animated live slash command preview palette & autocomplete
-├── picker.py         # Arrow-key interactive model selector with search filter
-├── client.py         # HTTP engine, SSE streaming, multi-run stats, arena & stress tests
-├── exporter.py       # Multi-format report exporter (HTML, JSON, CSV, Markdown)
-├── ui.py             # Rich RGB ASCII banner, comparison matrix, stress & telemetry cards
-├── config.py         # Persistent profiles, history manager & provider presets
-├── run.bat           # Windows 1-click launcher
-├── requirements.txt  # Project dependencies (rich, httpx)
-└── test_suite.py     # 24 automated offline unit & integration tests
+├── src/apitestllm/      # Installed application package
+│   ├── __init__.py      # Package version
+│   ├── __main__.py      # `python -m apitestllm` entry point
+│   ├── _compat.py       # Shared UTF-8 stdio helper (basedpyright-clean)
+│   ├── cli.py           # REPL loop, interactive menus & non-interactive engine
+│   ├── client.py        # HTTP engine, SSE streaming, multi-run stats & stress
+│   ├── config.py        # Persistent profiles, history manager & presets
+│   ├── exporter.py      # Multi-format exporter (HTML, JSON, CSV, Markdown)
+│   ├── ui.py            # Rich RGB ASCII banner & telemetry cards
+│   ├── palette.py       # Live slash-command preview palette & autocomplete
+│   └── picker.py        # Arrow-key model selector with search filter
+├── tests/
+│   └── test_suite.py    # 24 automated offline unit & integration tests
+├── scripts/
+│   ├── export-requirements.sh  # Regenerate requirements.txt from pyproject.toml (via export_requirements.py)
+│   └── export_requirements.py  # pyproject.toml → requirements.txt generator
+├── api_test.py          # Direct launcher for systems without uv (use `uv run apitestllm` when uv is available)
+├── run.bat              # Windows launcher (uses `uv run apitestllm`, falls back to `python api_test.py`)
+├── pyproject.toml       # uv project, src layout, ruff/pytest/basedpyright config
+├── uv.lock              # Locked dependency tree
+└── requirements.txt     # pip fallback, generated via scripts/export-requirements.sh
 ```
 
 ---
@@ -405,15 +416,14 @@ api-test-cli/
 Run the full offline automated verification suite (zero API keys or network required):
 
 ```bash
-python -m unittest discover -s . -p "test_suite.py" -v
+uv sync --group dev
+uv run pytest .
 ```
 
 All 24 test cases cover configuration, statistical calculations, SSE parsing, exporters, UI renderers, argument parsing, and CI failure thresholds:
 
 ```
-Ran 24 tests in 8.177s
-
-OK
+24 passed in 0.44s
 ```
 
 ---
@@ -431,7 +441,7 @@ Contributions, issues, and feature requests are welcome!
 
 ## 📄 License
 
-Distributed under the **GNU General Public License v3.0**. See `LICENSE` for details.
+Distributed under the **GNU General Public License v3.0 only** (see `license` field in `pyproject.toml`).
 
 ---
 
